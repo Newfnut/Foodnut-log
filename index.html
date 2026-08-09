@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Metabolic Ledger — Daily Log</title>
+<style>
+  :root{
+    --paper: #EEEBE1;
+    --paper-line: #D9D4C4;
+    --ink: #23303A;
+    --ink-soft: #5B6670;
+    --teal: #3F6B63;
+    --excellent: #2F6B4F;
+    --good: #6E8B3D;
+    --moderate: #C08A2E;
+    --limit: #B9562D;
+    --minimize: #9E3A34;
+    --unknown: #8B8578;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image: linear-gradient(var(--paper-line) 1px, transparent 1px);
+    background-size: 100% 2.1em;
+    color:var(--ink);
+    font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+    padding: 32px 16px 80px;
+  }
+  .wrap{max-width:600px;margin:0 auto;}
+  header{margin-bottom:22px;}
+  .eyebrow{
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+    font-size:11px; letter-spacing:0.16em; text-transform:uppercase;
+    color:var(--teal); margin:0 0 6px;
+  }
+  h1{ font-size: 28px; margin:0 0 6px; font-weight:600; letter-spacing:-0.01em;}
+  .sub{ color:var(--ink-soft); font-size:14.5px; line-height:1.5; margin:0;}
+
+  nav.tabs{ display:flex; gap:2px; margin-top:22px; border-bottom:1px solid var(--paper-line);}
+  nav.tabs button{
+    flex:1; background:none; border:none; cursor:pointer;
+    font-family:'SFMono-Regular', Consolas, monospace;
+    font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--ink-soft);
+    padding:12px 4px; border-bottom:2px solid transparent;
+  }
+  nav.tabs button.active{ color:var(--ink); border-bottom-color:var(--teal); font-weight:700;}
+
+  .panel{ display:none; margin-top:20px; }
+  .panel.active{ display:block; }
+
+  .card{
+    background: rgba(255,255,255,0.35);
+    border:1px solid var(--paper-line);
+    border-radius:2px;
+    padding:18px;
+  }
+  label{
+    display:block; font-family:'SFMono-Regular', Consolas, monospace;
+    font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--ink-soft); margin-bottom:7px;
+  }
+  input[type=text], textarea{
+    width:100%; font-family:Georgia, serif; font-size:16px; color:var(--ink);
+    background:#FBFAF6; border:1px solid var(--paper-line); border-radius:2px;
+    padding:11px; line-height:1.4;
+  }
+  textarea{min-height:64px; resize:vertical;}
+  input:focus, textarea:focus{ outline:2px solid var(--teal); outline-offset:1px; }
+  .row{ display:flex; gap:10px; margin-top:12px; }
+  .row.wrap-buttons{ flex-wrap:wrap; }
+  button.primary{
+    font-family:'SFMono-Regular', Consolas, monospace; font-size:12px;
+    letter-spacing:0.07em; text-transform:uppercase;
+    background:var(--ink); color:var(--paper); border:none;
+    padding:11px 18px; border-radius:2px; cursor:pointer; white-space:nowrap;
+  }
+  button.primary:hover{ background:var(--teal); }
+  button.ghost{
+    font-family:'SFMono-Regular', Consolas, monospace; font-size:11px;
+    letter-spacing:0.06em; text-transform:uppercase;
+    background:transparent; color:var(--ink-soft); border:1px solid var(--paper-line);
+    padding:9px 14px; border-radius:2px; cursor:pointer;
+  }
+  button.ghost:hover{ border-color:var(--teal); color:var(--teal); }
+  button.band-btn{
+    flex:1; min-width:90px; font-family:'SFMono-Regular', Consolas, monospace;
+    font-size:11px; letter-spacing:0.04em; text-transform:uppercase;
+    border-radius:2px; padding:10px 6px; cursor:pointer; font-weight:700;
+    border:2px solid currentColor; background:transparent;
+  }
+  button.band-btn.selected{ background:currentColor; }
+  button.band-btn.selected span{ color:var(--paper); }
+
+  .result{ margin-top:18px; padding-top:16px; border-top:1px dashed var(--paper-line); }
+  .result-head{ display:flex; align-items:center; gap:12px; }
+  .badge-lg{
+    width:52px;height:52px; border-radius:50%; border:3px solid currentColor;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'SFMono-Regular', Consolas, monospace; font-weight:700; font-size:18px;
+    flex:none;
+  }
+  .result-title{ font-size:19px; font-weight:600; text-transform:capitalize; }
+  .result-meta{ font-family:'SFMono-Regular', Consolas, monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; margin-top:2px;}
+  .result-note{ font-size:14.5px; line-height:1.55; margin-top:10px; }
+  .already{ font-size:13.5px; color:var(--ink-soft); font-style:italic; margin-top:6px; }
+
+  ul.log-list{ list-style:none; margin:16px 0 0; padding:0; }
+  ul.log-list li{
+    display:flex; gap:12px; align-items:flex-start;
+    padding:13px 0; border-bottom:1px solid var(--paper-line);
+  }
+  ul.log-list li:last-child{ border-bottom:none; }
+  .badge-sm{
+    width:34px; height:34px; border-radius:50%; border:2px solid currentColor;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'SFMono-Regular', Consolas, monospace; font-weight:700; font-size:12.5px;
+    flex:none; margin-top:2px;
+  }
+  .li-body{ flex:1; }
+  .li-top{ display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
+  .li-name{ font-size:16px; font-weight:600; text-transform:capitalize; }
+  .li-count{ font-family:'SFMono-Regular', Consolas, monospace; font-size:11px; color:var(--ink-soft); white-space:nowrap; }
+  .li-meta{ font-family:'SFMono-Regular', Consolas, monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; margin:2px 0 5px; }
+  .li-note{ font-size:13.5px; line-height:1.5; }
+  .li-usernote{ font-size:13px; line-height:1.5; color:var(--ink-soft); font-style:italic; margin-top:4px; }
+  .li-actions{ margin-top:6px; display:flex; gap:10px; }
+  .li-actions button{
+    font-family:'SFMono-Regular', Consolas, monospace; font-size:10.5px; letter-spacing:0.04em;
+    background:none; border:none; color:var(--teal); cursor:pointer; padding:0; text-decoration:underline;
+  }
+
+  .stats{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:18px; }
+  .stat{ flex:1; min-width:100px; border:1px solid var(--paper-line); padding:12px; background:rgba(255,255,255,0.35); }
+  .stat .n{ font-family:'SFMono-Regular', Consolas, monospace; font-size:22px; font-weight:700; }
+  .stat .l{ font-family:'SFMono-Regular', Consolas, monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); }
+
+  .empty{ font-size:14px; color:var(--ink-soft); font-style:italic; padding:20px 0; }
+  .loading{ font-size:13px; color:var(--ink-soft); font-family:'SFMono-Regular', Consolas, monospace; }
+
+  footer{
+    margin-top:30px; font-size:12px; color:var(--ink-soft); line-height:1.6;
+    border-top:1px solid var(--paper-line); padding-top:14px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Field Guide — Blood Sugar Impact</p>
+    <h1>The Metabolic Ledger</h1>
+    <p class="sub">Log a food, get its rating, and see the pattern build over time.</p>
+    <p class="already" id="signOutRow" style="display:none;">Signed in as <span id="whoAmI"></span> · <button class="ghost" id="signOutBtn" style="padding:4px 10px;">Sign out</button></p>
+  </header>
+
+  <div id="authScreen" class="card">
+    <label for="authEmail">Email</label>
+    <input type="text" id="authEmail" placeholder="you@example.com" autocomplete="username">
+    <label for="authPassword" style="margin-top:12px;">Password</label>
+    <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password">
+    <div class="row">
+      <button class="primary" id="signInBtn" style="flex:1;">Sign in</button>
+    </div>
+    <p class="already" id="authError"></p>
+    <p class="already" style="margin-top:14px;">No account yet? <button class="ghost" id="createAcctBtn" style="padding:4px 10px;">Create one</button></p>
+  </div>
+
+  <div id="appContent" style="display:none;">
+    <nav class="tabs">
+      <button id="tabLogBtn" class="active">Log a food</button>
+      <button id="tabHistoryBtn">History &amp; habits</button>
+    </nav>
+
+    <div id="panelLog" class="panel active">
+      <div class="card">
+        <label for="foodInput">What did you eat or buy?</label>
+        <input type="text" id="foodInput" placeholder="e.g. marble cheddar, sourdough rye, granola bar">
+        <div class="row">
+          <button class="primary" id="checkBtn" style="flex:1;">Check it</button>
+        </div>
+        <div id="resultArea"></div>
+      </div>
+    </div>
+
+    <div id="panelHistory" class="panel">
+      <div id="historyArea"><p class="loading">Loading your log…</p></div>
+    </div>
+  </div>
+
+  <footer>
+    General food-quality guidance, not personalized medical advice. Ratings are a starting point — pair this with guidance from your doctor or dietitian.
+  </footer>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+/* ---------- PASTE YOUR EXISTING FIREBASE CONFIG HERE (the same project your other 2 apps use) ---------- */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const db = getFirestore(firebaseApp);
+let currentUid = null;
+
+/* ---------- Rating dictionary (built-in) ---------- */
+const DICTIONARY = [
+  {k:"cucumber", s:10, c:"Vegetable", n:"Almost all water and fiber — negligible effect on blood sugar."},
+  {k:"spinach", s:10, c:"Vegetable", n:"Leafy and fibrous, very low carb load."},
+  {k:"kale", s:10, c:"Vegetable", n:"Leafy and fibrous, very low carb load."},
+  {k:"celery", s:10, c:"Vegetable", n:"Mostly water and fiber."},
+  {k:"broccoli", s:9, c:"Vegetable", n:"High fiber, low carb — a steady choice."},
+  {k:"cauliflower", s:9, c:"Vegetable", n:"High fiber, low carb — a steady choice."},
+  {k:"zucchini", s:9, c:"Vegetable", n:"High fiber, low carb — a steady choice."},
+  {k:"asparagus", s:9, c:"Vegetable", n:"High fiber, low carb — a steady choice."},
+  {k:"green beans", s:9, c:"Vegetable", n:"High fiber, low carb — a steady choice."},
+  {k:"mushroom", s:9, c:"Vegetable", n:"Very low carb, filling for the calories."},
+  {k:"bell pepper", s:9, c:"Vegetable", n:"Low carb, high fiber and vitamin C."},
+  {k:"pepper", s:8, c:"Vegetable", n:"Low carb, high in fiber and vitamin C."},
+  {k:"lettuce", s:9, c:"Vegetable", n:"Mostly water and fiber."},
+  {k:"garlic", s:8, c:"Aromatic", n:"Used in small amounts, negligible carb load."},
+  {k:"onion", s:7, c:"Vegetable", n:"A little more natural sugar than leafy greens."},
+  {k:"tomato", s:8, c:"Vegetable", n:"More natural sugar than leafy greens, still low overall."},
+  {k:"carrot", s:7, c:"Vegetable", n:"More natural sugar than leafy veg, but still fiber-rich."},
+  {k:"avocado mayo", s:7, c:"Condiment", n:"Better base oil than regular mayo — still calorie-dense, so a little goes a long way."},
+  {k:"avocado", s:9, c:"Healthy fat", n:"Mostly monounsaturated fat and fiber, very low carb."},
+  {k:"olive oil", s:9, c:"Fat", n:"A steady, well-studied fat source."},
+  {k:"mayo", s:5, c:"Condiment", n:"Mostly refined seed oil — won't spike blood sugar directly, but easy to overdo."},
+  {k:"coconut oil", s:6, c:"Fat", n:"Neutral on blood sugar, high in saturated fat."},
+  {k:"butter", s:6, c:"Fat", n:"Neutral on blood sugar itself; watch total saturated fat."},
+  {k:"peanut butter", s:7, c:"Fat / Protein", n:"Good protein and fat — check for added sugar in some brands."},
+  {k:"almonds", s:8, c:"Fat / Protein", n:"Fiber, fat, and protein with minimal carb impact."},
+  {k:"walnuts", s:8, c:"Fat / Protein", n:"Fiber, fat, and protein with minimal carb impact."},
+  {k:"nuts", s:8, c:"Fat / Protein", n:"Fiber, fat, and protein with minimal carb impact."},
+  {k:"chia", s:9, c:"Fat / Fiber", n:"Very high fiber, slows digestion of anything eaten with it."},
+  {k:"flax", s:9, c:"Fat / Fiber", n:"Very high fiber, slows digestion of anything eaten with it."},
+  {k:"seeds", s:8, c:"Fat / Protein", n:"Fiber, fat, and protein with minimal carb impact."},
+  {k:"eggs", s:9, c:"Protein", n:"Protein and fat with essentially zero carbs."},
+  {k:"salmon", s:9, c:"Protein / Fat", n:"Protein plus omega-3 fat, no carbs."},
+  {k:"sardines", s:9, c:"Protein / Fat", n:"Protein plus omega-3 fat, no carbs."},
+  {k:"mackerel", s:9, c:"Protein / Fat", n:"Protein plus omega-3 fat, no carbs."},
+  {k:"chicken breast", s:8, c:"Protein", n:"Lean protein, no carbs."},
+  {k:"chicken", s:7, c:"Protein", n:"Lean protein, no carbs."},
+  {k:"turkey", s:7, c:"Protein", n:"Lean protein, no carbs."},
+  {k:"tofu", s:8, c:"Protein", n:"Plant protein, low carb."},
+  {k:"tempeh", s:8, c:"Protein", n:"Plant protein, low carb, fermented."},
+  {k:"steak", s:6, c:"Protein", n:"Protein-dense; fattier cuts push saturated fat up."},
+  {k:"beef", s:7, c:"Protein", n:"Lean cuts are better; fattier cuts lower this somewhat."},
+  {k:"pork", s:6, c:"Protein", n:"Protein-dense; leaner cuts score higher."},
+  {k:"bacon", s:4, c:"Processed meat", n:"Cured and high in sodium and saturated fat — occasional, not daily."},
+  {k:"sausage", s:4, c:"Processed meat", n:"Often has fillers and higher sodium — occasional, not daily."},
+  {k:"deli meat", s:4, c:"Processed meat", n:"Processed and salty — occasional, not daily."},
+  {k:"lentils", s:8, c:"Legume", n:"Fiber and protein slow the carb digestion considerably."},
+  {k:"chickpeas", s:8, c:"Legume", n:"Fiber and protein slow the carb digestion considerably."},
+  {k:"hummus", s:7, c:"Legume", n:"Fiber and protein from chickpeas, moderated by the oil."},
+  {k:"beans", s:7, c:"Legume", n:"Fiber and protein slow the carb digestion considerably."},
+  {k:"marble cheddar", s:6, c:"Dairy", n:"Protein and fat with almost no carbs, but salty and calorie-dense — a topping, not a base."},
+  {k:"cheddar", s:6, c:"Dairy", n:"Protein and fat with almost no carbs, but salty and calorie-dense — a topping, not a base."},
+  {k:"mozzarella", s:7, c:"Dairy", n:"Lower sodium than most cheeses, still calorie-dense."},
+  {k:"cottage cheese", s:7, c:"Dairy", n:"High protein, low carb — a strong choice."},
+  {k:"greek yogurt", s:7, c:"Dairy", n:"High protein — assumes unsweetened; flavoured varieties score much lower."},
+  {k:"yogurt", s:6, c:"Dairy", n:"Depends heavily on added sugar — unsweetened plain scores higher."},
+  {k:"cheese", s:6, c:"Dairy", n:"Protein and fat with almost no carbs, but salty and calorie-dense."},
+  {k:"cream", s:6, c:"Dairy / Fat", n:"Neutral on blood sugar, calorie-dense."},
+  {k:"milk", s:6, c:"Dairy", n:"Contains natural milk sugar (lactose), moderate impact."},
+  {k:"sourdough rye", s:6, c:"Grain", n:"Rye and fermentation both soften the blood sugar response compared to plain white bread."},
+  {k:"rye", s:6, c:"Grain", n:"Denser and higher fiber than most wheat bread."},
+  {k:"sourdough", s:5, c:"Grain", n:"Fermentation helps a little, but it's still refined wheat flour underneath."},
+  {k:"whole wheat pasta", s:5, c:"Grain", n:"More fiber than white pasta, still a refined starch."},
+  {k:"whole wheat bread", s:6, c:"Grain", n:"More fiber than white bread, a steadier release."},
+  {k:"whole grain bread", s:6, c:"Grain", n:"More fiber than white bread, a steadier release."},
+  {k:"white bread", s:3, c:"Grain", n:"Refined starch — digests fast and raises blood sugar quickly."},
+  {k:"bread", s:4, c:"Grain", n:"Impact depends a lot on the type — whole grain and rye score higher than white."},
+  {k:"steel cut oats", s:7, c:"Grain", n:"Minimally processed, slower to digest than instant."},
+  {k:"instant oatmeal", s:3, c:"Grain", n:"Usually processed into a fast-digesting, often sweetened form."},
+  {k:"oats", s:6, c:"Grain", n:"Steel-cut or rolled is best; flavoured instant packets are a different food."},
+  {k:"quinoa", s:7, c:"Grain", n:"Higher fiber and protein than most grains."},
+  {k:"brown rice", s:5, c:"Grain", n:"More fiber than white rice, still a starch to watch."},
+  {k:"white rice", s:3, c:"Grain", n:"Refined starch — digests fast and raises blood sugar quickly."},
+  {k:"rice", s:4, c:"Grain", n:"Impact depends on type — brown and wild score higher than white."},
+  {k:"sweet potato", s:5, c:"Starch", n:"More fiber and a gentler rise than a white potato."},
+  {k:"french fries", s:2, c:"Starch", n:"Refined starch plus frying oil — a rough combination."},
+  {k:"potato", s:4, c:"Starch", n:"A fast-digesting starch; skin-on and cooled slightly is a bit gentler."},
+  {k:"crackers", s:3, c:"Grain / Snack", n:"Usually refined flour, easy to eat a lot fast."},
+  {k:"pretzel", s:2, c:"Snack", n:"Refined starch with little else going for it nutritionally."},
+  {k:"chips", s:2, c:"Snack", n:"Refined starch plus fried oil and salt."},
+  {k:"granola", s:3, c:"Grain / Snack", n:"Usually has added sugar and oil despite the health-food image — check the label."},
+  {k:"cereal", s:2, c:"Grain / Snack", n:"Most boxed cereal is refined grain plus added sugar."},
+  {k:"blueberries", s:7, c:"Fruit", n:"High fiber, lower sugar than most fruit."},
+  {k:"strawberries", s:7, c:"Fruit", n:"High fiber, lower sugar than most fruit."},
+  {k:"berries", s:7, c:"Fruit", n:"High fiber, lower sugar than most fruit."},
+  {k:"apple", s:6, c:"Fruit", n:"Fiber softens the impact, skin-on is better than juiced."},
+  {k:"banana", s:5, c:"Fruit", n:"Riper bananas digest faster and raise blood sugar more."},
+  {k:"grapes", s:4, c:"Fruit", n:"Small and easy to overeat — sugar-dense for the volume."},
+  {k:"dried fruit", s:2, c:"Fruit", n:"Concentrated sugar with the water removed — easy to eat a lot fast."},
+  {k:"fruit juice", s:2, c:"Beverage", n:"All the sugar of the fruit with none of the fiber to slow it down."},
+  {k:"dark chocolate", s:6, c:"Sweet", n:"70%+ cacao has less sugar than milk chocolate — still a treat."},
+  {k:"milk chocolate", s:3, c:"Sweet", n:"More sugar, less cacao than dark chocolate."},
+  {k:"chocolate bar", s:2, c:"Sweet", n:"Sugar and refined fat combined."},
+  {k:"chocolate", s:4, c:"Sweet", n:"Depends heavily on the cacao percentage — darker is better."},
+  {k:"ice cream", s:2, c:"Sweet", n:"Sugar and fat combined, easy to overeat."},
+  {k:"donut", s:1, c:"Sweet", n:"Refined flour, sugar, and fried fat together."},
+  {k:"pastry", s:2, c:"Sweet", n:"Refined flour and sugar, often with added fat."},
+  {k:"cookie", s:2, c:"Sweet", n:"Refined flour and sugar."},
+  {k:"cake", s:2, c:"Sweet", n:"Refined flour and sugar, usually in a large portion."},
+  {k:"candy", s:1, c:"Sweet", n:"Essentially straight sugar."},
+  {k:"soda", s:1, c:"Beverage", n:"Liquid sugar — one of the fastest blood sugar spikes there is."},
+  {k:"pop", s:1, c:"Beverage", n:"Liquid sugar — one of the fastest blood sugar spikes there is."},
+  {k:"black coffee", s:8, c:"Beverage", n:"No carbs on its own."},
+  {k:"coffee", s:7, c:"Beverage", n:"Assumes little to no added sugar — sweetened versions score lower."},
+  {k:"tea", s:8, c:"Beverage", n:"No carbs on its own."},
+  {k:"wine", s:5, c:"Beverage", n:"Lower sugar than beer or cocktails, still affects blood sugar regulation."},
+  {k:"beer", s:3, c:"Beverage", n:"Carb-heavy relative to other alcohol."},
+  {k:"vinegar", s:8, c:"Condiment", n:"Some evidence a little vinegar with a meal softens the blood sugar rise."},
+  {k:"mustard", s:8, c:"Condiment", n:"Negligible carbs, no added sugar in most varieties."},
+  {k:"hot sauce", s:8, c:"Condiment", n:"Negligible carbs in most varieties."},
+  {k:"ketchup", s:3, c:"Condiment", n:"Often has more added sugar than people expect."},
+];
+DICTIONARY.sort((a,b)=> b.k.length - a.k.length);
+
+const BANDS = [
+  {label:"excellent", range:[8.5,10], color:"var(--excellent)", repScore:9.5},
+  {label:"good",      range:[6.5,8.49], color:"var(--good)", repScore:7.5},
+  {label:"moderate",  range:[4.5,6.49], color:"var(--moderate)", repScore:5.5},
+  {label:"limit",     range:[2.5,4.49], color:"var(--limit)", repScore:3.5},
+  {label:"minimize",  range:[1,2.49], color:"var(--minimize)", repScore:1.5},
+];
+function band(score){
+  if(score===null||score===undefined) return {label:"not in ledger", color:"var(--unknown)"};
+  for(const b of BANDS){ if(score>=b.range[0]) return b; }
+  return BANDS[BANDS.length-1];
+}
+function lookupAuto(name){
+  const t = name.toLowerCase().trim();
+  for(const entry of DICTIONARY){ if(t.includes(entry.k)) return entry; }
+  return null;
+}
+function slugify(name){
+  return name.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+}
+function fmtDate(iso){
+  return new Date(iso).toLocaleDateString(undefined,{month:'short', day:'numeric', year:'numeric'});
+}
+
+/* ---------- Storage ---------- */
+let DATA = {}; // slug -> entry
+let dataLoaded = false;
+
+async function loadData(){
+  if(!currentUid) return;
+  try{
+    const ref = doc(db, 'users', currentUid, 'foodlog', 'data');
+    const snap = await getDoc(ref);
+    DATA = snap.exists() ? (snap.data().payload ? JSON.parse(snap.data().payload) : {}) : {};
+  }catch(e){
+    DATA = {};
+  }
+  dataLoaded = true;
+}
+async function saveData(){
+  if(!currentUid) return false;
+  try{
+    const ref = doc(db, 'users', currentUid, 'foodlog', 'data');
+    await setDoc(ref, { payload: JSON.stringify(DATA), updatedAt: new Date().toISOString() });
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+/* ---------- Tabs ---------- */
+const tabLogBtn = document.getElementById('tabLogBtn');
+const tabHistoryBtn = document.getElementById('tabHistoryBtn');
+const panelLog = document.getElementById('panelLog');
+const panelHistory = document.getElementById('panelHistory');
+
+tabLogBtn.addEventListener('click', ()=>{
+  tabLogBtn.classList.add('active'); tabHistoryBtn.classList.remove('active');
+  panelLog.classList.add('active'); panelHistory.classList.remove('active');
+});
+tabHistoryBtn.addEventListener('click', ()=>{
+  tabHistoryBtn.classList.add('active'); tabLogBtn.classList.remove('active');
+  panelHistory.classList.add('active'); panelLog.classList.remove('active');
+  renderHistory('all');
+});
+
+/* ---------- Log tab logic ---------- */
+const foodInput = document.getElementById('foodInput');
+const checkBtn = document.getElementById('checkBtn');
+const resultArea = document.getElementById('resultArea');
+
+checkBtn.addEventListener('click', handleCheck);
+foodInput.addEventListener('keydown', e=>{ if(e.key==='Enter') handleCheck(); });
+
+async function handleCheck(){
+  const raw = foodInput.value.trim();
+  if(!raw) return;
+  if(!dataLoaded) await loadData();
+  const slug = slugify(raw);
+
+  if(DATA[slug]){
+    renderAlreadyLogged(slug);
+    return;
+  }
+  const auto = lookupAuto(raw);
+  if(auto){
+    const b = band(auto.s);
+    renderAutoResult(raw, slug, auto, b);
+    return;
+  }
+
+  resultArea.innerHTML = `<p class="already">Searching a nutrition database for "${raw}"…</p>`;
+  const off = await lookupOpenFoodFacts(raw);
+  if(off){
+    renderOffSuggestion(raw, slug, off);
+  } else {
+    renderManualPicker(raw, slug);
+  }
+}
+
+/* ---------- Open Food Facts fallback ---------- */
+async function lookupOpenFoodFacts(name){
+  try{
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(name)}&search_simple=1&action=process&json=1&page_size=5`;
+    const res = await fetch(url);
+    if(!res.ok) return null;
+    const data = await res.json();
+    if(!data.products || data.products.length === 0) return null;
+    const candidate = data.products.find(p=>{
+      const n = p.nutriments || {};
+      return n.carbohydrates_100g !== undefined && (n.sugars_100g !== undefined || n.fiber_100g !== undefined);
+    });
+    if(!candidate) return null;
+    const n = candidate.nutriments || {};
+    const sugar = n.sugars_100g ?? 0;
+    const fiber = n.fiber_100g ?? 0;
+    const carbs = n.carbohydrates_100g ?? 0;
+    const protein = n.proteins_100g ?? 0;
+    const netCarb = Math.max(carbs - fiber, 0);
+
+    let score = 10;
+    if(sugar >= 20) score -= 6; else if(sugar >= 10) score -= 4; else if(sugar >= 5) score -= 2; else if(sugar >= 2) score -= 1;
+    if(netCarb >= 50) score -= 3; else if(netCarb >= 30) score -= 2; else if(netCarb >= 15) score -= 1;
+    if(fiber >= 6) score += 2; else if(fiber >= 3) score += 1;
+    if(protein >= 15) score += 1;
+    score = Math.max(1, Math.min(10, Math.round(score * 2) / 2));
+
+    return {
+      productName: candidate.product_name || name,
+      brand: candidate.brands || '',
+      sugar, fiber, carbs, protein, netCarb,
+      score
+    };
+  }catch(e){
+    return null;
+  }
+}
+
+function renderOffSuggestion(rawName, slug, off){
+  const b = band(off.score);
+  const needsNote = off.score <= 4;
+  const label = off.brand ? `${off.productName} (${off.brand})` : off.productName;
+  resultArea.innerHTML = `
+    <div class="result">
+      <p class="already">Closest match found: <strong>${label}</strong></p>
+      <div class="result-head">
+        ${badgeHTML(off.score,'lg')}
+        <div>
+          <div class="result-title">${rawName}</div>
+          <div class="result-meta" style="color:${b.color}">Estimated from label data — ${b.label}</div>
+        </div>
+      </div>
+      <p class="result-note">Per 100g: ${off.carbs}g carbs (${off.fiber}g fiber, ${off.netCarb}g net), ${off.sugar}g sugar, ${off.protein}g protein.</p>
+      ${needsNote ? `
+        <label style="margin-top:14px;">What's the trigger, or what could replace it?</label>
+        <textarea id="noteInput" placeholder="e.g. grabbed it when I skipped lunch — could swap for nuts"></textarea>
+      ` : ''}
+      <div class="row wrap-buttons">
+        <button class="primary" id="acceptOffBtn" style="flex:1;">This is right — save it</button>
+        <button class="ghost" id="rejectOffBtn">Not the right product</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('acceptOffBtn').addEventListener('click', async ()=>{
+    const userNote = needsNote ? (document.getElementById('noteInput').value.trim()) : '';
+    const now = new Date().toISOString();
+    DATA[slug] = {
+      name: rawName, score: off.score, category: 'Packaged product',
+      note: `Estimated from nutrition label: ${off.carbs}g carbs (${off.fiber}g fiber), ${off.sugar}g sugar, ${off.protein}g protein per 100g.`,
+      userNote, source:'openfoodfacts', firstLogged: now, lastLogged: now, count: 1
+    };
+    await saveData();
+    renderAlreadyLogged(slug);
+    foodInput.value='';
+  });
+  document.getElementById('rejectOffBtn').addEventListener('click', ()=>{
+    renderManualPicker(rawName, slug);
+  });
+}
+
+function badgeHTML(score, size){
+  const b = band(score);
+  const cls = size==='lg' ? 'badge-lg' : 'badge-sm';
+  return `<div class="${cls}" style="color:${b.color}">${score!==null?score:'?'}</div>`;
+}
+
+function renderAlreadyLogged(slug){
+  const e = DATA[slug];
+  const b = band(e.score);
+  resultArea.innerHTML = `
+    <div class="result">
+      <div class="result-head">
+        ${badgeHTML(e.score,'lg')}
+        <div>
+          <div class="result-title">${e.name}</div>
+          <div class="result-meta" style="color:${b.color}">${e.category} — ${b.label}</div>
+        </div>
+      </div>
+      <p class="already">You've logged this before — first on ${fmtDate(e.firstLogged)}, seen ${e.count} time${e.count===1?'':'s'}, last on ${fmtDate(e.lastLogged)}.</p>
+      ${e.note ? `<p class="result-note">${e.note}</p>` : ''}
+      ${e.userNote ? `<p class="result-note" style="font-style:italic;color:var(--ink-soft)">Your note: ${e.userNote}</p>` : ''}
+      <div class="row">
+        <button class="primary" id="logAgainBtn">Log it again</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('logAgainBtn').addEventListener('click', async ()=>{
+    e.count += 1;
+    e.lastLogged = new Date().toISOString();
+    await saveData();
+    renderAlreadyLogged(slug);
+    foodInput.value='';
+  });
+}
+
+function renderAutoResult(rawName, slug, auto, b){
+  const needsNote = auto.s <= 4;
+  resultArea.innerHTML = `
+    <div class="result">
+      <div class="result-head">
+        ${badgeHTML(auto.s,'lg')}
+        <div>
+          <div class="result-title">${rawName}</div>
+          <div class="result-meta" style="color:${b.color}">${auto.c} — ${b.label}</div>
+        </div>
+      </div>
+      <p class="result-note">${auto.n}</p>
+      ${needsNote ? `
+        <label style="margin-top:14px;">What's the trigger, or what could replace it?</label>
+        <textarea id="noteInput" placeholder="e.g. grabbed it when I skipped lunch — could swap for nuts"></textarea>
+      ` : ''}
+      <div class="row">
+        <button class="primary" id="saveEntryBtn">Save to log</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('saveEntryBtn').addEventListener('click', async ()=>{
+    const userNote = needsNote ? (document.getElementById('noteInput').value.trim()) : '';
+    const now = new Date().toISOString();
+    DATA[slug] = {
+      name: rawName, score: auto.s, category: auto.c, note: auto.n,
+      userNote, source:'auto', firstLogged: now, lastLogged: now, count: 1
+    };
+    await saveData();
+    renderAlreadyLogged(slug);
+    foodInput.value='';
+  });
+}
+
+function renderManualPicker(rawName, slug){
+  resultArea.innerHTML = `
+    <div class="result">
+      <p class="already">No nutrition label match found either — rate it yourself and it'll be recognized instantly next time.</p>
+      <label>How does this treat your blood sugar?</label>
+      <div class="row wrap-buttons" id="bandButtons">
+        ${BANDS.map(b=>`<button type="button" class="band-btn" data-label="${b.label}" data-score="${b.repScore}" style="color:${b.color}"><span>${b.label}</span></button>`).join('')}
+      </div>
+      <label style="margin-top:14px;">Category (optional)</label>
+      <input type="text" id="catInput" placeholder="e.g. snack, condiment, dairy">
+      <label style="margin-top:14px;" id="noteLabel">Note (what's the trigger, or a replacement idea?)</label>
+      <textarea id="noteInput" placeholder="Optional unless this scores low"></textarea>
+      <div class="row">
+        <button class="primary" id="saveManualBtn" disabled>Pick a rating first</button>
+      </div>
+    </div>
+  `;
+  let chosen = null;
+  const buttons = resultArea.querySelectorAll('.band-btn');
+  const saveBtn = document.getElementById('saveManualBtn');
+  buttons.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      buttons.forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');
+      chosen = { label: btn.dataset.label, score: parseFloat(btn.dataset.score) };
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save to log';
+    });
+  });
+  saveBtn.addEventListener('click', async ()=>{
+    if(!chosen) return;
+    const now = new Date().toISOString();
+    const cat = document.getElementById('catInput').value.trim() || 'Uncategorized';
+    const note = document.getElementById('noteInput').value.trim();
+    DATA[slug] = {
+      name: rawName, score: chosen.score, category: cat, note: '',
+      userNote: note, source:'manual', firstLogged: now, lastLogged: now, count: 1
+    };
+    await saveData();
+    renderAlreadyLogged(slug);
+    foodInput.value='';
+  });
+}
+
+/* ---------- History tab ---------- */
+async function renderHistory(filter){
+  const historyArea = document.getElementById('historyArea');
+  if(!dataLoaded) await loadData();
+  const entries = Object.entries(DATA).map(([slug,e])=>({slug,...e}));
+
+  if(entries.length===0){
+    historyArea.innerHTML = `<p class="empty">Nothing logged yet — head to the Log tab and start with whatever you last ate.</p>`;
+    return;
+  }
+
+  const bandCounts = {excellent:0, good:0, moderate:0, limit:0, minimize:0};
+  let weightedSum=0, totalCount=0;
+  entries.forEach(e=>{
+    bandCounts[band(e.score).label] += 1;
+    weightedSum += e.score * e.count;
+    totalCount += e.count;
+  });
+  const avg = totalCount>0 ? Math.round((weightedSum/totalCount)*10)/10 : 0;
+
+  let filtered = entries;
+  let heading = 'All logged items';
+  if(filter==='trouble'){
+    filtered = entries.filter(e=>e.score<=4).sort((a,b)=> b.count-a.count || new Date(b.lastLogged)-new Date(a.lastLogged));
+    heading = 'Trouble spots (score ≤ 4)';
+  } else if(filter==='frequent'){
+    filtered = [...entries].sort((a,b)=> b.count-a.count);
+    heading = 'Most frequently logged';
+  } else {
+    filtered = [...entries].sort((a,b)=> a.score-b.score);
+    heading = 'All logged items (lowest first)';
+  }
+
+  historyArea.innerHTML = `
+    <div class="stats">
+      <div class="stat"><div class="n">${entries.length}</div><div class="l">unique items</div></div>
+      <div class="stat"><div class="n">${avg}</div><div class="l">weighted avg /10</div></div>
+      <div class="stat"><div class="n">${bandCounts.limit + bandCounts.minimize}</div><div class="l">in limit/minimize</div></div>
+    </div>
+    <div class="row wrap-buttons" style="margin-bottom:6px;">
+      <button class="ghost" data-f="all">All</button>
+      <button class="ghost" data-f="trouble">Trouble spots</button>
+      <button class="ghost" data-f="frequent">Most frequent</button>
+    </div>
+    <label style="margin-top:10px;">${heading}</label>
+    <ul class="log-list" id="logList"></ul>
+  `;
+
+  historyArea.querySelectorAll('[data-f]').forEach(btn=>{
+    btn.addEventListener('click', ()=> renderHistory(btn.dataset.f));
+  });
+
+  const list = document.getElementById('logList');
+  if(filtered.length===0){
+    list.innerHTML = `<li><span class="empty">Nothing in this view yet.</span></li>`;
+  } else {
+    filtered.forEach(e=>{
+      const b = band(e.score);
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <div class="badge-sm" style="color:${b.color}">${e.score}</div>
+        <div class="li-body">
+          <div class="li-top">
+            <div class="li-name">${e.name}</div>
+            <div class="li-count">×${e.count}</div>
+          </div>
+          <div class="li-meta" style="color:${b.color}">${e.category} — ${b.label} · last ${fmtDate(e.lastLogged)}</div>
+          ${e.note ? `<div class="li-note">${e.note}</div>` : ''}
+          ${e.userNote ? `<div class="li-usernote">${e.userNote}</div>` : ''}
+          <div class="li-actions">
+            <button data-again="${e.slug}">Log again</button>
+            <button data-remove="${e.slug}">Remove</button>
+          </div>
+        </div>
+      `;
+      list.appendChild(li);
+    });
+    list.querySelectorAll('[data-again]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const slug = btn.dataset.again;
+        DATA[slug].count += 1;
+        DATA[slug].lastLogged = new Date().toISOString();
+        await saveData();
+        renderHistory(filter);
+      });
+    });
+    list.querySelectorAll('[data-remove]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const slug = btn.dataset.remove;
+        delete DATA[slug];
+        await saveData();
+        renderHistory(filter);
+      });
+    });
+  }
+}
+
+/* ---------- Init / auth gate ---------- */
+const authScreen = document.getElementById('authScreen');
+const appContent = document.getElementById('appContent');
+const authError = document.getElementById('authError');
+const signOutRow = document.getElementById('signOutRow');
+const whoAmI = document.getElementById('whoAmI');
+
+function friendlyAuthError(code){
+  const map = {
+    'auth/invalid-email': "That email doesn't look right.",
+    'auth/user-not-found': "No account with that email — try Create one.",
+    'auth/wrong-password': "Wrong password.",
+    'auth/invalid-credential': "Email or password is wrong.",
+    'auth/email-already-in-use': "An account already exists for that email — try Sign in instead.",
+    'auth/weak-password': "Password needs to be at least 6 characters.",
+  };
+  return map[code] || ("Something went wrong (" + code + ").");
+}
+
+document.getElementById('signInBtn').addEventListener('click', async ()=>{
+  authError.textContent = '';
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPassword').value;
+  if(!email || !pass){ authError.textContent = 'Enter both email and password.'; return; }
+  try{
+    await signInWithEmailAndPassword(auth, email, pass);
+  }catch(e){
+    authError.textContent = friendlyAuthError(e.code);
+  }
+});
+
+document.getElementById('createAcctBtn').addEventListener('click', async ()=>{
+  authError.textContent = '';
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPassword').value;
+  if(!email || !pass){ authError.textContent = 'Enter both email and password.'; return; }
+  try{
+    await createUserWithEmailAndPassword(auth, email, pass);
+  }catch(e){
+    authError.textContent = friendlyAuthError(e.code);
+  }
+});
+
+document.getElementById('signOutBtn').addEventListener('click', ()=> signOut(auth));
+
+onAuthStateChanged(auth, async (user)=>{
+  if(user){
+    currentUid = user.uid;
+    whoAmI.textContent = user.email || user.uid;
+    authScreen.style.display = 'none';
+    signOutRow.style.display = 'block';
+    appContent.style.display = 'block';
+    await loadData();
+    document.getElementById('historyArea').innerHTML = '<p class="empty">Switch to this tab to see your log.</p>';
+  } else {
+    currentUid = null;
+    dataLoaded = false;
+    authScreen.style.display = 'block';
+    signOutRow.style.display = 'none';
+    appContent.style.display = 'none';
+  }
+});
+</script>
+</body>
+</html>

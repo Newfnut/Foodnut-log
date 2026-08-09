@@ -352,6 +352,12 @@ function slugify(name){
 function fmtDate(iso){
   return new Date(iso).toLocaleDateString(undefined,{month:'short', day:'numeric', year:'numeric'});
 }
+function todayInputValue(){
+  return new Date().toISOString().slice(0,10);
+}
+function dateInputToISO(dateStr){
+  return new Date(dateStr + 'T12:00:00').toISOString();
+}
 
 /* ---------- Storage ---------- */
 let DATA = {}; // slug -> entry
@@ -486,6 +492,8 @@ function renderOffSuggestion(rawName, slug, off){
         <label style="margin-top:14px;">What's the trigger, or what could replace it?</label>
         <textarea id="noteInput" placeholder="e.g. grabbed it when I skipped lunch — could swap for nuts"></textarea>
       ` : ''}
+      <label style="margin-top:14px;">Date</label>
+      <input type="date" id="entryDate" value="${todayInputValue()}">
       <div class="row wrap-buttons">
         <button class="primary" id="acceptOffBtn" style="flex:1;">This is right — save it</button>
         <button class="ghost" id="rejectOffBtn">Not the right product</button>
@@ -494,7 +502,8 @@ function renderOffSuggestion(rawName, slug, off){
   `;
   document.getElementById('acceptOffBtn').addEventListener('click', async ()=>{
     const userNote = needsNote ? (document.getElementById('noteInput').value.trim()) : '';
-    const now = new Date().toISOString();
+    const chosenDate = document.getElementById('entryDate').value;
+    const now = chosenDate ? dateInputToISO(chosenDate) : new Date().toISOString();
     DATA[slug] = {
       name: rawName, score: off.score, category: 'Packaged product',
       note: `Estimated from nutrition label: ${off.carbs}g carbs (${off.fiber}g fiber), ${off.sugar}g sugar, ${off.protein}g protein per 100g.`,
@@ -530,6 +539,8 @@ function renderAlreadyLogged(slug){
       <p class="already">You've logged this before — first on ${fmtDate(e.firstLogged)}, seen ${e.count} time${e.count===1?'':'s'}, last on ${fmtDate(e.lastLogged)}.</p>
       ${e.note ? `<p class="result-note">${e.note}</p>` : ''}
       ${e.userNote ? `<p class="result-note" style="font-style:italic;color:var(--ink-soft)">Your note: ${e.userNote}</p>` : ''}
+      <label style="margin-top:14px;">Date</label>
+      <input type="date" id="entryDate" value="${todayInputValue()}">
       <div class="row">
         <button class="primary" id="logAgainBtn">Log it again</button>
       </div>
@@ -537,7 +548,8 @@ function renderAlreadyLogged(slug){
   `;
   document.getElementById('logAgainBtn').addEventListener('click', async ()=>{
     e.count += 1;
-    e.lastLogged = new Date().toISOString();
+    const chosenDate = document.getElementById('entryDate').value;
+    e.lastLogged = chosenDate ? dateInputToISO(chosenDate) : new Date().toISOString();
     await saveData();
     renderAlreadyLogged(slug);
     foodInput.value='';
@@ -560,6 +572,8 @@ function renderAutoResult(rawName, slug, auto, b){
         <label style="margin-top:14px;">What's the trigger, or what could replace it?</label>
         <textarea id="noteInput" placeholder="e.g. grabbed it when I skipped lunch — could swap for nuts"></textarea>
       ` : ''}
+      <label style="margin-top:14px;">Date</label>
+      <input type="date" id="entryDate" value="${todayInputValue()}">
       <div class="row">
         <button class="primary" id="saveEntryBtn">Save to log</button>
       </div>
@@ -567,7 +581,8 @@ function renderAutoResult(rawName, slug, auto, b){
   `;
   document.getElementById('saveEntryBtn').addEventListener('click', async ()=>{
     const userNote = needsNote ? (document.getElementById('noteInput').value.trim()) : '';
-    const now = new Date().toISOString();
+    const chosenDate = document.getElementById('entryDate').value;
+    const now = chosenDate ? dateInputToISO(chosenDate) : new Date().toISOString();
     DATA[slug] = {
       name: rawName, score: auto.s, category: auto.c, note: auto.n,
       userNote, source:'auto', firstLogged: now, lastLogged: now, count: 1
@@ -590,6 +605,8 @@ function renderManualPicker(rawName, slug){
       <input type="text" id="catInput" placeholder="e.g. snack, condiment, dairy">
       <label style="margin-top:14px;" id="noteLabel">Note (what's the trigger, or a replacement idea?)</label>
       <textarea id="noteInput" placeholder="Optional unless this scores low"></textarea>
+      <label style="margin-top:14px;">Date</label>
+      <input type="date" id="entryDate" value="${todayInputValue()}">
       <div class="row">
         <button class="primary" id="saveManualBtn" disabled>Pick a rating first</button>
       </div>
@@ -609,7 +626,8 @@ function renderManualPicker(rawName, slug){
   });
   saveBtn.addEventListener('click', async ()=>{
     if(!chosen) return;
-    const now = new Date().toISOString();
+    const chosenDate = document.getElementById('entryDate').value;
+    const now = chosenDate ? dateInputToISO(chosenDate) : new Date().toISOString();
     const cat = document.getElementById('catInput').value.trim() || 'Uncategorized';
     const note = document.getElementById('noteInput').value.trim();
     DATA[slug] = {
@@ -693,7 +711,12 @@ async function renderHistory(filter){
           ${e.userNote ? `<div class="li-usernote">${e.userNote}</div>` : ''}
           <div class="li-actions">
             <button data-again="${e.slug}">Log again</button>
+            <button data-editdate="${e.slug}">Edit date</button>
             <button data-remove="${e.slug}">Remove</button>
+          </div>
+          <div class="li-date-editor" id="dateEditor-${e.slug}" style="display:none; margin-top:8px;">
+            <input type="date" id="dateInput-${e.slug}" value="${e.lastLogged.slice(0,10)}">
+            <button data-savedate="${e.slug}" style="margin-left:8px;">Save</button>
           </div>
         </div>
       `;
@@ -704,6 +727,24 @@ async function renderHistory(filter){
         const slug = btn.dataset.again;
         DATA[slug].count += 1;
         DATA[slug].lastLogged = new Date().toISOString();
+        await saveData();
+        renderHistory(filter);
+      });
+    });
+    list.querySelectorAll('[data-editdate]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const slug = btn.dataset.editdate;
+        document.getElementById(`dateEditor-${slug}`).style.display = 'block';
+      });
+    });
+    list.querySelectorAll('[data-savedate]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const slug = btn.dataset.savedate;
+        const newDate = document.getElementById(`dateInput-${slug}`).value;
+        if(!newDate) return;
+        const iso = dateInputToISO(newDate);
+        DATA[slug].lastLogged = iso;
+        if(DATA[slug].count === 1){ DATA[slug].firstLogged = iso; }
         await saveData();
         renderHistory(filter);
       });

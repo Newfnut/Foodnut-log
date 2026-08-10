@@ -62,7 +62,7 @@
     font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase;
     color:var(--ink-soft); margin-bottom:7px;
   }
-  input[type=text], textarea{
+  input[type=text], input[type=date], textarea{
     width:100%; font-family:Georgia, serif; font-size:16px; color:var(--ink);
     background:#FBFAF6; border:1px solid var(--paper-line); border-radius:2px;
     padding:11px; line-height:1.4;
@@ -395,7 +395,23 @@ async function loadData(){
   }catch(e){
     DATA = {};
   }
+  migrateToDatesArray();
   dataLoaded = true;
+}
+function migrateToDatesArray(){
+  // Older entries stored count/firstLogged/lastLogged instead of a dates array.
+  // Single occurrence keeps its one date; repeats keep first+last only —
+  // the in-between occurrences were never recorded, so they can't be recovered.
+  Object.values(DATA).forEach(e=>{
+    if(!e.dates){
+      if(e.count && e.count > 1 && e.firstLogged && e.lastLogged && e.firstLogged !== e.lastLogged){
+        e.dates = [e.firstLogged, e.lastLogged];
+      } else {
+        e.dates = [e.lastLogged || e.firstLogged || new Date().toISOString()];
+      }
+      delete e.count; delete e.firstLogged; delete e.lastLogged;
+    }
+  });
 }
 async function saveData(){
   if(!currentUid) return false;
@@ -512,12 +528,11 @@ document.getElementById('checkMealBtn').addEventListener('click', async ()=>{
       userNote: existing ? existing.userNote : '',
       source: 'meal',
       ingredients: found.map(r=>({ name: r.name, score: r.score })),
-      firstLogged: existing ? existing.firstLogged : now,
-      lastLogged: now,
-      count: existing ? existing.count + 1 : 1
+      dates: existing ? [...existing.dates, now].sort() : [now]
     };
     await saveData();
-    mealResultArea.innerHTML = `<p class="already">Saved "${mealName}" as a meal — rated ${mealScore}/10. Seen ${DATA[slug].count} time${DATA[slug].count===1?'':'s'}.</p>`;
+    const finalCount = DATA[slug].dates.length;
+    mealResultArea.innerHTML = `<p class="already">Saved "${mealName}" as a meal — rated ${mealScore}/10. Seen ${finalCount} time${finalCount===1?'':'s'}.</p>`;
     document.getElementById('mealNameInput').value = '';
     document.getElementById('mealIngredientsInput').value = '';
   });
@@ -621,7 +636,7 @@ function renderOffSuggestion(rawName, slug, off){
     DATA[slug] = {
       name: rawName, score: off.score, category: 'Packaged product',
       note: `Estimated from nutrition label: ${off.carbs}g carbs (${off.fiber}g fiber), ${off.sugar}g sugar, ${off.protein}g protein per 100g.`,
-      userNote, source:'openfoodfacts', firstLogged: now, lastLogged: now, count: 1
+      userNote, source:'openfoodfacts', dates: [now]
     };
     await saveData();
     renderAlreadyLogged(slug);
@@ -641,6 +656,9 @@ function badgeHTML(score, size){
 function renderAlreadyLogged(slug){
   const e = DATA[slug];
   const b = band(e.score);
+  const dates = e.dates || [];
+  const count = dates.length;
+  const first = dates[0], last = dates[dates.length-1];
   resultArea.innerHTML = `
     <div class="result">
       <div class="result-head">
@@ -650,7 +668,7 @@ function renderAlreadyLogged(slug){
           <div class="result-meta" style="color:${b.color}">${e.category} — ${b.label}</div>
         </div>
       </div>
-      <p class="already">You've logged this before — first on ${fmtDate(e.firstLogged)}, seen ${e.count} time${e.count===1?'':'s'}, last on ${fmtDate(e.lastLogged)}.</p>
+      <p class="already">You've logged this before — first on ${fmtDate(first)}, seen ${count} time${count===1?'':'s'}, last on ${fmtDate(last)}.</p>
       ${e.note ? `<p class="result-note">${e.note}</p>` : ''}
       ${e.userNote ? `<p class="result-note" style="font-style:italic;color:var(--ink-soft)">Your note: ${e.userNote}</p>` : ''}
       <label style="margin-top:14px;">Date</label>
@@ -661,9 +679,9 @@ function renderAlreadyLogged(slug){
     </div>
   `;
   document.getElementById('logAgainBtn').addEventListener('click', async ()=>{
-    e.count += 1;
     const chosenDate = document.getElementById('entryDate').value;
-    e.lastLogged = chosenDate ? dateInputToISO(chosenDate) : new Date().toISOString();
+    const iso = chosenDate ? dateInputToISO(chosenDate) : new Date().toISOString();
+    e.dates = [...(e.dates||[]), iso].sort();
     await saveData();
     renderAlreadyLogged(slug);
     foodInput.value='';
@@ -699,7 +717,7 @@ function renderAutoResult(rawName, slug, auto, b){
     const now = chosenDate ? dateInputToISO(chosenDate) : new Date().toISOString();
     DATA[slug] = {
       name: rawName, score: auto.s, category: auto.c, note: auto.n,
-      userNote, source:'auto', firstLogged: now, lastLogged: now, count: 1
+      userNote, source:'auto', dates: [now]
     };
     await saveData();
     renderAlreadyLogged(slug);
@@ -746,7 +764,7 @@ function renderManualPicker(rawName, slug){
     const note = document.getElementById('noteInput').value.trim();
     DATA[slug] = {
       name: rawName, score: chosen.score, category: cat, note: '',
-      userNote: note, source:'manual', firstLogged: now, lastLogged: now, count: 1
+      userNote: note, source:'manual', dates: [now]
     };
     await saveData();
     renderAlreadyLogged(slug);
@@ -774,8 +792,50 @@ function mealImprovementTip(e){
   return `<div class="li-usernote">Weakest link: <strong>${weakest.name}</strong> (${weakest.score}/10). Swapping it for something closer to an 8 would move this meal from ${e.score} to about ${improvedAvg}.</div>`;
 }
 
+/* ---------- CSV export ---------- */
+function csvEscape(val){
+  const s = String(val ?? '');
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+function buildCSVRows(entries){
+  const rows = [['Date','Meal','Item','Score','Band','Category','Note','Your Note']];
+  entries.forEach(e=>{
+    const dates = e.dates || [];
+    if(e.source === 'meal' && e.ingredients){
+      dates.forEach(d=>{
+        rows.push([fmtDate(d), '', e.name, e.score, band(e.score).label, 'Meal', e.note||'', e.userNote||'']);
+        e.ingredients.forEach(ing=>{
+          rows.push([fmtDate(d), e.name, ing.name, ing.score, band(ing.score).label, '', '', '']);
+        });
+      });
+    } else {
+      dates.forEach(d=>{
+        rows.push([fmtDate(d), '', e.name, e.score, band(e.score).label, e.category||'', e.note||'', e.userNote||'']);
+      });
+    }
+  });
+  return rows;
+}
+function downloadCSV(){
+  const entries = Object.values(DATA);
+  const rows = buildCSVRows(entries);
+  const csv = rows.map(r=>r.map(csvEscape).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `metabolic-ledger-${todayInputValue()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 /* ---------- History tab ---------- */
+let currentFilter = 'all';
+
 async function renderHistory(filter){
+  currentFilter = filter || currentFilter;
   const historyArea = document.getElementById('historyArea');
   if(!dataLoaded) await loadData();
   const entries = Object.entries(DATA).map(([slug,e])=>({slug,...e}));
@@ -785,115 +845,147 @@ async function renderHistory(filter){
     return;
   }
 
+  historyArea.innerHTML = `
+    <div id="statsBlock"></div>
+    <label for="historySearch">Search</label>
+    <input type="text" id="historySearch" placeholder="e.g. bread, cheddar, spaghetti">
+    <div class="row wrap-buttons" style="margin:10px 0 6px;">
+      <button class="ghost" data-f="all">All</button>
+      <button class="ghost" data-f="trouble">Trouble spots</button>
+      <button class="ghost" data-f="frequent">Most frequent</button>
+      <button class="ghost" id="csvBtn">Download CSV</button>
+    </div>
+    <label id="listHeading" style="margin-top:10px;"></label>
+    <ul class="log-list" id="logList"></ul>
+  `;
+
+  document.getElementById('csvBtn').addEventListener('click', downloadCSV);
+  historyArea.querySelectorAll('[data-f]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ currentFilter = btn.dataset.f; updateHistoryList(); });
+  });
+  document.getElementById('historySearch').addEventListener('input', updateHistoryList);
+
+  updateHistoryList();
+}
+
+function updateHistoryList(){
+  const entries = Object.entries(DATA).map(([slug,e])=>({slug,...e}));
+  const searchTerm = (document.getElementById('historySearch')?.value || '').trim().toLowerCase();
+
   const bandCounts = {excellent:0, good:0, moderate:0, limit:0, minimize:0};
   let weightedSum=0, totalCount=0;
   entries.forEach(e=>{
+    const c = (e.dates||[]).length;
     bandCounts[band(e.score).label] += 1;
-    weightedSum += e.score * e.count;
-    totalCount += e.count;
+    weightedSum += e.score * c;
+    totalCount += c;
   });
   const avg = totalCount>0 ? Math.round((weightedSum/totalCount)*10)/10 : 0;
 
-  let filtered = entries;
-  let heading = 'All logged items';
-  if(filter==='trouble'){
-    filtered = entries.filter(e=>e.score<=4).sort((a,b)=> b.count-a.count || new Date(b.lastLogged)-new Date(a.lastLogged));
-    heading = 'Trouble spots (score ≤ 4)';
-  } else if(filter==='frequent'){
-    filtered = [...entries].sort((a,b)=> b.count-a.count);
-    heading = 'Most frequently logged';
-  } else {
-    filtered = [...entries].sort((a,b)=> a.score-b.score);
-    heading = 'All logged items (lowest first)';
-  }
-
-  historyArea.innerHTML = `
+  document.getElementById('statsBlock').innerHTML = `
     <div class="stats">
       <div class="stat"><div class="n">${entries.length}</div><div class="l">unique items</div></div>
       <div class="stat"><div class="n">${avg}</div><div class="l">weighted avg /10</div></div>
       <div class="stat"><div class="n">${bandCounts.limit + bandCounts.minimize}</div><div class="l">in limit/minimize</div></div>
     </div>
-    <div class="row wrap-buttons" style="margin-bottom:6px;">
-      <button class="ghost" data-f="all">All</button>
-      <button class="ghost" data-f="trouble">Trouble spots</button>
-      <button class="ghost" data-f="frequent">Most frequent</button>
-    </div>
-    <label style="margin-top:10px;">${heading}</label>
-    <ul class="log-list" id="logList"></ul>
   `;
 
-  historyArea.querySelectorAll('[data-f]').forEach(btn=>{
-    btn.addEventListener('click', ()=> renderHistory(btn.dataset.f));
-  });
+  let searched = entries;
+  if(searchTerm){
+    searched = entries.filter(e=>{
+      if(e.name.toLowerCase().includes(searchTerm)) return true;
+      if(e.ingredients && e.ingredients.some(ing=>ing.name.toLowerCase().includes(searchTerm))) return true;
+      return false;
+    });
+  }
+
+  let filtered = searched;
+  let heading = 'All logged items';
+  if(currentFilter==='trouble'){
+    filtered = searched.filter(e=>e.score<=4).sort((a,b)=> (b.dates||[]).length-(a.dates||[]).length);
+    heading = 'Trouble spots (score ≤ 4)';
+  } else if(currentFilter==='frequent'){
+    filtered = [...searched].sort((a,b)=> (b.dates||[]).length-(a.dates||[]).length);
+    heading = 'Most frequently logged';
+  } else {
+    filtered = [...searched].sort((a,b)=> a.score-b.score);
+    heading = 'All logged items (lowest first)';
+  }
+  document.getElementById('listHeading').textContent = searchTerm ? `${heading} — matching "${searchTerm}"` : heading;
 
   const list = document.getElementById('logList');
   if(filtered.length===0){
     list.innerHTML = `<li><span class="empty">Nothing in this view yet.</span></li>`;
-  } else {
-    filtered.forEach(e=>{
-      const b = band(e.score);
-      const li = document.createElement('li');
-      li.innerHTML = `
-        <div class="badge-sm" style="color:${b.color}">${e.score}</div>
-        <div class="li-body">
-          <div class="li-top">
-            <div class="li-name">${e.name}</div>
-            <div class="li-count">×${e.count}</div>
-          </div>
-          <div class="li-meta" style="color:${b.color}">${e.category} — ${b.label} · last ${fmtDate(e.lastLogged)}</div>
-          ${e.source === 'meal' ? mealBreakdownHTML(e) : (e.note ? `<div class="li-note">${e.note}</div>` : '')}
-          ${e.source === 'meal' ? mealImprovementTip(e) : (e.userNote ? `<div class="li-usernote">${e.userNote}</div>` : '')}
-          <div class="li-actions">
-            <button data-again="${e.slug}">Log again</button>
-            <button data-editdate="${e.slug}">Edit date</button>
-            <button data-remove="${e.slug}">Remove</button>
-          </div>
-          <div class="li-date-editor" id="dateEditor-${e.slug}" style="display:none; margin-top:8px;">
-            <input type="date" id="dateInput-${e.slug}" value="${e.lastLogged.slice(0,10)}">
-            <button data-savedate="${e.slug}" style="margin-left:8px;">Save</button>
-          </div>
-        </div>
-      `;
-      list.appendChild(li);
-    });
-    list.querySelectorAll('[data-again]').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        const slug = btn.dataset.again;
-        DATA[slug].count += 1;
-        DATA[slug].lastLogged = new Date().toISOString();
-        await saveData();
-        renderHistory(filter);
-      });
-    });
-    list.querySelectorAll('[data-editdate]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const slug = btn.dataset.editdate;
-        document.getElementById(`dateEditor-${slug}`).style.display = 'block';
-      });
-    });
-    list.querySelectorAll('[data-savedate]').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        const slug = btn.dataset.savedate;
-        const newDate = document.getElementById(`dateInput-${slug}`).value;
-        if(!newDate) return;
-        const iso = dateInputToISO(newDate);
-        DATA[slug].lastLogged = iso;
-        if(DATA[slug].count === 1){ DATA[slug].firstLogged = iso; }
-        await saveData();
-        renderHistory(filter);
-      });
-    });
-    list.querySelectorAll('[data-remove]').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        const slug = btn.dataset.remove;
-        delete DATA[slug];
-        await saveData();
-        renderHistory(filter);
-      });
-    });
+    return;
   }
-}
+  list.innerHTML = '';
+  filtered.forEach(e=>{
+    const b = band(e.score);
+    const dates = e.dates || [];
+    const count = dates.length;
+    const last = dates[dates.length-1];
+    const isMeal = e.source === 'meal';
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div class="badge-sm" style="color:${b.color}">${e.score}</div>
+      <div class="li-body">
+        <div class="li-top">
+          <div class="li-name">${e.name}</div>
+          <div class="li-count">×${count}</div>
+        </div>
+        <div class="li-meta" style="color:${b.color}">${e.category} — ${b.label} · last ${fmtDate(last)}</div>
+        ${isMeal ? mealBreakdownHTML(e) : (e.note ? `<div class="li-note">${e.note}</div>` : '')}
+        ${isMeal ? (searchTerm ? mealImprovementTip(e) : '') : (e.userNote ? `<div class="li-usernote">${e.userNote}</div>` : '')}
+        <div class="li-actions">
+          <button data-again="${e.slug}">Log again</button>
+          <button data-editdate="${e.slug}">Edit date</button>
+          <button data-remove="${e.slug}">Remove</button>
+        </div>
+        <div class="li-date-editor" id="dateEditor-${e.slug}" style="display:none; margin-top:8px;">
+          <input type="date" id="dateInput-${e.slug}" value="${last.slice(0,10)}">
+          <button data-savedate="${e.slug}" style="margin-left:8px;">Save</button>
+        </div>
+      </div>
+    `;
+    list.appendChild(li);
+  });
 
+  list.querySelectorAll('[data-again]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const slug = btn.dataset.again;
+      DATA[slug].dates = [...(DATA[slug].dates||[]), new Date().toISOString()].sort();
+      await saveData();
+      updateHistoryList();
+    });
+  });
+  list.querySelectorAll('[data-editdate]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const slug = btn.dataset.editdate;
+      document.getElementById(`dateEditor-${slug}`).style.display = 'block';
+    });
+  });
+  list.querySelectorAll('[data-savedate]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const slug = btn.dataset.savedate;
+      const newDate = document.getElementById(`dateInput-${slug}`).value;
+      if(!newDate) return;
+      const iso = dateInputToISO(newDate);
+      const arr = DATA[slug].dates || [];
+      arr[arr.length-1] = iso; // edits the most recent occurrence
+      DATA[slug].dates = arr.sort();
+      await saveData();
+      updateHistoryList();
+    });
+  });
+  list.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const slug = btn.dataset.remove;
+      delete DATA[slug];
+      await saveData();
+      updateHistoryList();
+    });
+  });
+}
 /* ---------- Init / auth gate ---------- */
 const authScreen = document.getElementById('authScreen');
 const appContent = document.getElementById('appContent');

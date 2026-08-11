@@ -1043,9 +1043,23 @@ function renderSummary(){
     summaryArea.innerHTML = `<p class="empty">Nothing logged yet.</p>`;
     return;
   }
-  const entries = allEntries
-    .filter(e=> summaryFilter==='all' ? true : summaryFilter==='meals' ? e.source==='meal' : e.source!=='meal')
-    .sort((a,b)=> a.score-b.score);
+  let entries;
+  if(summaryFilter === 'items'){
+    // Flatten: standalone items as-is, plus every ingredient pulled out of every meal.
+    const map = {};
+    allEntries.forEach(e=>{
+      if(e.source === 'meal' && e.ingredients){
+        e.ingredients.forEach(ing=>{ map[slugify(ing.name)] = { name: ing.name, score: ing.score }; });
+      } else {
+        map[slugify(e.name)] = { name: e.name, score: e.score };
+      }
+    });
+    entries = Object.values(map).sort((a,b)=> a.score-b.score);
+  } else {
+    entries = allEntries
+      .filter(e=> summaryFilter==='meals' ? e.source==='meal' : true)
+      .sort((a,b)=> a.score-b.score);
+  }
 
   const rows = entries.map(e=>{
     const b = band(e.score);

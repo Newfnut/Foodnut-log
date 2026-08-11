@@ -1035,13 +1035,18 @@ function updateHistoryList(){
   });
 }
 /* ---------- Summary tab (for doctor visits) ---------- */
+let summaryFilter = 'all';
 function renderSummary(){
   const summaryArea = document.getElementById('summaryArea');
-  const entries = Object.values(DATA).sort((a,b)=> a.score-b.score);
-  if(entries.length===0){
+  const allEntries = Object.values(DATA);
+  if(allEntries.length===0){
     summaryArea.innerHTML = `<p class="empty">Nothing logged yet.</p>`;
     return;
   }
+  const entries = allEntries
+    .filter(e=> summaryFilter==='all' ? true : summaryFilter==='meals' ? e.source==='meal' : e.source!=='meal')
+    .sort((a,b)=> a.score-b.score);
+
   const rows = entries.map(e=>{
     const b = band(e.score);
     return `
@@ -1050,13 +1055,23 @@ function renderSummary(){
         <div style="text-transform:capitalize;">${e.name}</div>
       </li>
     `;
-  }).join('');
+  }).join('') || `<li class="empty">Nothing in this view.</li>`;
+
   summaryArea.innerHTML = `
-    <div class="row" style="margin-bottom:14px;">
+    <div class="row wrap-buttons" style="margin-bottom:14px;">
+      <button class="ghost" data-sf="all">All</button>
+      <button class="ghost" data-sf="items">Items</button>
+      <button class="ghost" data-sf="meals">Meals</button>
       <button class="ghost" id="printSummaryBtn">Print this page</button>
     </div>
     <ul style="list-style:none; margin:0; padding:0;">${rows}</ul>
   `;
+  summaryArea.querySelectorAll('[data-sf]').forEach(btn=>{
+    if(btn.dataset.sf === summaryFilter){
+      btn.style.color = 'var(--ink)'; btn.style.borderColor = 'var(--teal)';
+    }
+    btn.addEventListener('click', ()=>{ summaryFilter = btn.dataset.sf; renderSummary(); });
+  });
   document.getElementById('printSummaryBtn').addEventListener('click', ()=> window.print());
 }
 

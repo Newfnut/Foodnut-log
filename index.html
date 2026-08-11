@@ -172,6 +172,7 @@
     <nav class="tabs">
       <button id="tabLogBtn" class="active">Log a food</button>
       <button id="tabHistoryBtn">History &amp; habits</button>
+      <button id="tabSummaryBtn">Summary</button>
     </nav>
 
     <div id="panelLog" class="panel active">
@@ -205,6 +206,10 @@
 
     <div id="panelHistory" class="panel">
       <div id="historyArea"><p class="loading">Loading your log…</p></div>
+    </div>
+
+    <div id="panelSummary" class="panel">
+      <div id="summaryArea"></div>
     </div>
   </div>
 
@@ -372,11 +377,12 @@ function lookupAuto(name){
 function slugify(name){
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
 }
+const APP_TIMEZONE = 'America/Los_Angeles';
 function fmtDate(iso){
-  return new Date(iso).toLocaleDateString(undefined,{month:'short', day:'numeric', year:'numeric'});
+  return new Date(iso).toLocaleDateString('en-US',{month:'short', day:'numeric', year:'numeric', timeZone: APP_TIMEZONE});
 }
 function todayInputValue(){
-  return new Date().toISOString().slice(0,10);
+  return new Date().toLocaleDateString('en-CA',{timeZone: APP_TIMEZONE}); // en-CA formats as YYYY-MM-DD
 }
 function dateInputToISO(dateStr){
   return new Date(dateStr + 'T12:00:00').toISOString();
@@ -396,6 +402,7 @@ async function loadData(){
     DATA = {};
   }
   migrateToDatesArray();
+  lastKnownEntryCount = Object.keys(DATA).length;
   dataLoaded = true;
 }
 function migrateToDatesArray(){
@@ -415,29 +422,47 @@ function migrateToDatesArray(){
 }
 async function saveData(){
   if(!currentUid) return false;
+  const keys = Object.keys(DATA).length;
+  if(keys === 0 && lastKnownEntryCount > 0){
+    console.error('Refused to save: DATA is empty but was previously non-empty. Not overwriting Firestore.');
+    return false;
+  }
   try{
     const ref = doc(db, 'users', currentUid, 'foodlog', 'data');
     await setDoc(ref, { payload: JSON.stringify(DATA), updatedAt: new Date().toISOString() });
+    lastKnownEntryCount = keys;
     return true;
   }catch(e){
     return false;
   }
 }
+let lastKnownEntryCount = 0;
 
 /* ---------- Tabs ---------- */
 const tabLogBtn = document.getElementById('tabLogBtn');
 const tabHistoryBtn = document.getElementById('tabHistoryBtn');
+const tabSummaryBtn = document.getElementById('tabSummaryBtn');
 const panelLog = document.getElementById('panelLog');
 const panelHistory = document.getElementById('panelHistory');
+const panelSummary = document.getElementById('panelSummary');
 
+function deactivateAllTabs(){
+  [tabLogBtn, tabHistoryBtn, tabSummaryBtn].forEach(b=>b.classList.remove('active'));
+  [panelLog, panelHistory, panelSummary].forEach(p=>p.classList.remove('active'));
+}
 tabLogBtn.addEventListener('click', ()=>{
-  tabLogBtn.classList.add('active'); tabHistoryBtn.classList.remove('active');
-  panelLog.classList.add('active'); panelHistory.classList.remove('active');
+  deactivateAllTabs();
+  tabLogBtn.classList.add('active'); panelLog.classList.add('active');
 });
 tabHistoryBtn.addEventListener('click', ()=>{
-  tabHistoryBtn.classList.add('active'); tabLogBtn.classList.remove('active');
-  panelHistory.classList.add('active'); panelLog.classList.remove('active');
+  deactivateAllTabs();
+  tabHistoryBtn.classList.add('active'); panelHistory.classList.add('active');
   renderHistory('all');
+});
+tabSummaryBtn.addEventListener('click', ()=>{
+  deactivateAllTabs();
+  tabSummaryBtn.classList.add('active'); panelSummary.classList.add('active');
+  renderSummary();
 });
 
 /* ---------- Log tab logic ---------- */
@@ -939,11 +964,16 @@ function updateHistoryList(){
         <div class="li-actions">
           <button data-again="${e.slug}">Log again</button>
           <button data-editdate="${e.slug}">Edit date</button>
+          <button data-editscore="${e.slug}">Edit score</button>
           <button data-remove="${e.slug}">Remove</button>
         </div>
         <div class="li-date-editor" id="dateEditor-${e.slug}" style="display:none; margin-top:8px;">
           <input type="date" id="dateInput-${e.slug}" value="${last.slice(0,10)}">
           <button data-savedate="${e.slug}" style="margin-left:8px;">Save</button>
+        </div>
+        <div class="li-date-editor" id="scoreEditor-${e.slug}" style="display:none; margin-top:8px;">
+          <input type="number" id="scoreInput-${e.slug}" min="1" max="10" step="0.5" value="${e.score}" style="width:80px; display:inline-block;">
+          <button data-savescore="${e.slug}" style="margin-left:8px;">Save</button>
         </div>
       </div>
     `;
@@ -977,15 +1007,59 @@ function updateHistoryList(){
       updateHistoryList();
     });
   });
+  list.querySelectorAll('[data-editscore]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const slug = btn.dataset.editscore;
+      document.getElementById(`scoreEditor-${slug}`).style.display = 'block';
+    });
+  });
+  list.querySelectorAll('[data-savescore]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const slug = btn.dataset.savescore;
+      const val = parseFloat(document.getElementById(`scoreInput-${slug}`).value);
+      if(isNaN(val) || val < 1 || val > 10) return;
+      DATA[slug].score = val;
+      DATA[slug].source = 'manual-override';
+      await saveData();
+      updateHistoryList();
+    });
+  });
   list.querySelectorAll('[data-remove]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const slug = btn.dataset.remove;
+      if(!confirm(`Remove "${DATA[slug].name}" from your log? This can't be undone.`)) return;
       delete DATA[slug];
       await saveData();
       updateHistoryList();
     });
   });
 }
+/* ---------- Summary tab (for doctor visits) ---------- */
+function renderSummary(){
+  const summaryArea = document.getElementById('summaryArea');
+  const entries = Object.values(DATA).sort((a,b)=> a.score-b.score);
+  if(entries.length===0){
+    summaryArea.innerHTML = `<p class="empty">Nothing logged yet.</p>`;
+    return;
+  }
+  const rows = entries.map(e=>{
+    const b = band(e.score);
+    return `
+      <li style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--paper-line);">
+        <div class="badge-sm" style="color:${b.color}">${e.score}</div>
+        <div style="text-transform:capitalize;">${e.name}</div>
+      </li>
+    `;
+  }).join('');
+  summaryArea.innerHTML = `
+    <div class="row" style="margin-bottom:14px;">
+      <button class="ghost" id="printSummaryBtn">Print this page</button>
+    </div>
+    <ul style="list-style:none; margin:0; padding:0;">${rows}</ul>
+  `;
+  document.getElementById('printSummaryBtn').addEventListener('click', ()=> window.print());
+}
+
 /* ---------- Init / auth gate ---------- */
 const authScreen = document.getElementById('authScreen');
 const appContent = document.getElementById('appContent');

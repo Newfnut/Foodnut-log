@@ -2,220 +2,273 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Metabolic Ledger — Daily Log</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ledger</title>
 <style>
   :root{
-    --paper: #EEEBE1;
-    --paper-line: #D9D4C4;
-    --ink: #23303A;
-    --ink-soft: #5B6670;
-    --teal: #3F6B63;
-    --excellent: #2F6B4F;
-    --good: #6E8B3D;
-    --moderate: #C08A2E;
-    --limit: #B9562D;
-    --minimize: #9E3A34;
-    --unknown: #8B8578;
+    --bg: #F2F2F7;
+    --card: #FFFFFF;
+    --text: #1C1C1E;
+    --text-secondary: #8E8E93;
+    --border: #E5E5EA;
+    --accent: #007AFF;
+    --accent-soft: #E9F2FF;
+    --excellent: #34C759;
+    --good: #8DC63F;
+    --moderate: #FFCC00;
+    --limit: #FF9500;
+    --minimize: #FF3B30;
+    --unknown: #C7C7CC;
+    --danger: #FF3B30;
   }
-  *{box-sizing:border-box;}
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body{ height:100%; }
   body{
     margin:0;
-    background:var(--paper);
-    background-image: linear-gradient(var(--paper-line) 1px, transparent 1px);
-    background-size: 100% 2.1em;
-    color:var(--ink);
-    font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
-    padding: 32px 16px 80px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
   }
-  .wrap{max-width:600px;margin:0 auto;}
-  header{margin-bottom:22px;}
-  .eyebrow{
-    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
-    font-size:11px; letter-spacing:0.16em; text-transform:uppercase;
-    color:var(--teal); margin:0 0 6px;
-  }
-  h1{ font-size: 28px; margin:0 0 6px; font-weight:600; letter-spacing:-0.01em;}
-  .sub{ color:var(--ink-soft); font-size:14.5px; line-height:1.5; margin:0;}
+  .wrap{ max-width: 560px; margin: 0 auto; padding: 0 16px; }
 
-  nav.tabs{ display:flex; gap:2px; margin-top:22px; border-bottom:1px solid var(--paper-line);}
-  nav.tabs button{
-    flex:1; background:none; border:none; cursor:pointer;
-    font-family:'SFMono-Regular', Consolas, monospace;
-    font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase;
-    color:var(--ink-soft);
-    padding:12px 4px; border-bottom:2px solid transparent;
+  header.topbar{
+    padding: calc(14px + env(safe-area-inset-top)) 16px 12px;
+    background: var(--bg);
+    position: sticky; top:0; z-index: 5;
   }
-  nav.tabs button.active{ color:var(--ink); border-bottom-color:var(--teal); font-weight:700;}
-
-  .panel{ display:none; margin-top:20px; }
-  .panel.active{ display:block; }
+  header.topbar h1{ font-size: 28px; font-weight: 700; margin:0; letter-spacing: -0.02em; }
+  header.topbar .sub{ color: var(--text-secondary); font-size: 14px; margin-top: 2px; }
+  .signout-row{ display:flex; justify-content:space-between; align-items:center; margin-top:6px; }
+  .signout-row span{ font-size:12.5px; color: var(--text-secondary); }
 
   .card{
-    background: rgba(255,255,255,0.35);
-    border:1px solid var(--paper-line);
-    border-radius:2px;
-    padding:18px;
+    background: var(--card);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    margin-bottom: 14px;
   }
-  label{
-    display:block; font-family:'SFMono-Regular', Consolas, monospace;
-    font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase;
-    color:var(--ink-soft); margin-bottom:7px;
-  }
-  input[type=text], input[type=date], textarea{
-    width:100%; font-family:Georgia, serif; font-size:16px; color:var(--ink);
-    background:#FBFAF6; border:1px solid var(--paper-line); border-radius:2px;
-    padding:11px; line-height:1.4;
-  }
-  textarea{min-height:64px; resize:vertical;}
-  input:focus, textarea:focus{ outline:2px solid var(--teal); outline-offset:1px; }
-  .row{ display:flex; gap:10px; margin-top:12px; }
-  .row.wrap-buttons{ flex-wrap:wrap; }
-  button.primary{
-    font-family:'SFMono-Regular', Consolas, monospace; font-size:12px;
-    letter-spacing:0.07em; text-transform:uppercase;
-    background:var(--ink); color:var(--paper); border:none;
-    padding:11px 18px; border-radius:2px; cursor:pointer; white-space:nowrap;
-  }
-  button.primary:hover{ background:var(--teal); }
-  button.ghost{
-    font-family:'SFMono-Regular', Consolas, monospace; font-size:11px;
-    letter-spacing:0.06em; text-transform:uppercase;
-    background:transparent; color:var(--ink-soft); border:1px solid var(--paper-line);
-    padding:9px 14px; border-radius:2px; cursor:pointer;
-  }
-  button.ghost:hover{ border-color:var(--teal); color:var(--teal); }
-  button.band-btn{
-    flex:1; min-width:90px; font-family:'SFMono-Regular', Consolas, monospace;
-    font-size:11px; letter-spacing:0.04em; text-transform:uppercase;
-    border-radius:2px; padding:10px 6px; cursor:pointer; font-weight:700;
-    border:2px solid currentColor; background:transparent;
-  }
-  button.band-btn.selected{ background:currentColor; }
-  button.band-btn.selected span{ color:var(--paper); }
+  .card + .card{ margin-top: 0; }
 
-  .result{ margin-top:18px; padding-top:16px; border-top:1px dashed var(--paper-line); }
-  .result-head{ display:flex; align-items:center; gap:12px; }
-  .badge-lg{
-    width:52px;height:52px; border-radius:50%; border:3px solid currentColor;
+  label.field-label{
+    display:block; font-size: 13px; font-weight: 600; color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  input[type=text], input[type=number], input[type=date], input[type=datetime-local], textarea{
+    width:100%;
+    font-family: inherit; font-size: 16px; color: var(--text);
+    background: #F7F7F9;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 12px;
+  }
+  textarea{ min-height: 70px; resize: vertical; }
+  input:focus, textarea:focus{ outline: none; border-color: var(--accent); background: #fff; }
+
+  .btn{
+    font-family: inherit; font-size: 16px; font-weight: 600;
+    border: none; border-radius: 12px; padding: 13px 16px;
+    cursor: pointer;
+  }
+  .btn-primary{ background: var(--accent); color: #fff; width:100%; }
+  .btn-primary:active{ opacity: 0.85; }
+  .btn-secondary{ background: var(--accent-soft); color: var(--accent); }
+  .btn-text{ background: none; color: var(--accent); font-size: 14px; font-weight: 600; padding: 6px 4px; }
+  .btn-text.danger{ color: var(--danger); }
+  .btn-row{ display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap; }
+  .btn-row .btn{ flex:1; }
+
+  /* Segmented control */
+  .segmented{
+    display:flex; background:#E5E5EA; border-radius: 10px; padding: 2px; gap:2px;
+  }
+  .segmented button{
+    flex:1; border:none; background:transparent; border-radius: 8px;
+    padding: 8px 4px; font-size: 13px; font-weight: 600; color: var(--text);
+    cursor:pointer; font-family: inherit;
+  }
+  .segmented button.active{ background:#fff; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+
+  /* Score badge */
+  .badge{
+    width: 40px; height:40px; border-radius: 50%;
     display:flex; align-items:center; justify-content:center;
-    font-family:'SFMono-Regular', Consolas, monospace; font-weight:700; font-size:18px;
-    flex:none;
+    font-weight: 700; font-size: 15px; color:#fff; flex:none;
   }
-  .result-title{ font-size:19px; font-weight:600; text-transform:capitalize; }
-  .result-meta{ font-family:'SFMono-Regular', Consolas, monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; margin-top:2px;}
-  .result-note{ font-size:14.5px; line-height:1.55; margin-top:10px; }
-  .already{ font-size:13.5px; color:var(--ink-soft); font-style:italic; margin-top:6px; }
+  .badge-lg{ width: 56px; height:56px; font-size: 20px; }
 
-  ul.log-list{ list-style:none; margin:16px 0 0; padding:0; }
-  ul.log-list li{
-    display:flex; gap:12px; align-items:flex-start;
-    padding:13px 0; border-bottom:1px solid var(--paper-line);
+  .chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background: #F7F7F9; border-radius: 20px; padding: 5px 10px 5px 5px;
+    font-size: 13px; margin: 3px 6px 3px 0;
   }
-  ul.log-list li:last-child{ border-bottom:none; }
-  .badge-sm{
-    width:34px; height:34px; border-radius:50%; border:2px solid currentColor;
-    display:flex; align-items:center; justify-content:center;
-    font-family:'SFMono-Regular', Consolas, monospace; font-weight:700; font-size:12.5px;
-    flex:none; margin-top:2px;
+  .chip .dot{ width:18px; height:18px; border-radius:50%; color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+
+  .row-list li{
+    display:flex; align-items:flex-start; gap:12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
   }
-  .li-body{ flex:1; }
-  .li-top{ display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
-  .li-name{ font-size:16px; font-weight:600; text-transform:capitalize; }
-  .li-count{ font-family:'SFMono-Regular', Consolas, monospace; font-size:11px; color:var(--ink-soft); white-space:nowrap; }
-  .li-meta{ font-family:'SFMono-Regular', Consolas, monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; margin:2px 0 5px; }
-  .li-note{ font-size:13.5px; line-height:1.5; }
-  .li-usernote{ font-size:13px; line-height:1.5; color:var(--ink-soft); font-style:italic; margin-top:4px; }
-  .li-actions{ margin-top:6px; display:flex; gap:10px; }
-  .li-actions button{
-    font-family:'SFMono-Regular', Consolas, monospace; font-size:10.5px; letter-spacing:0.04em;
-    background:none; border:none; color:var(--teal); cursor:pointer; padding:0; text-decoration:underline;
+  .row-list li:last-child{ border-bottom:none; }
+  .meal-tag{
+    font-size: 11px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em;
+    color: var(--accent); background: var(--accent-soft);
+    padding: 3px 8px; border-radius: 6px; display:inline-block; margin-bottom: 3px;
   }
+  .entry-name{ font-size: 16px; font-weight: 600; text-transform:capitalize; }
+  .entry-meta{ font-size: 12.5px; color: var(--text-secondary); margin-top:1px; }
+  .entry-actions{ margin-top:8px; display:flex; gap:14px; flex-wrap:wrap; }
+  .entry-actions button{ font-family:inherit; background:none; border:none; color:var(--accent); font-size:12.5px; font-weight:600; padding:0; cursor:pointer; }
+  .entry-actions button.danger{ color: var(--danger); }
 
-  .stats{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:18px; }
-  .stat{ flex:1; min-width:100px; border:1px solid var(--paper-line); padding:12px; background:rgba(255,255,255,0.35); }
-  .stat .n{ font-family:'SFMono-Regular', Consolas, monospace; font-size:22px; font-weight:700; }
-  .stat .l{ font-family:'SFMono-Regular', Consolas, monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); }
+  .empty{ color: var(--text-secondary); font-size: 14.5px; text-align:center; padding: 30px 0; }
+  .hint{ color: var(--text-secondary); font-size: 13.5px; }
+  .note-text{ font-size: 13.5px; color: var(--text); margin-top: 6px; }
 
-  .empty{ font-size:14px; color:var(--ink-soft); font-style:italic; padding:20px 0; }
-  .loading{ font-size:13px; color:var(--ink-soft); font-family:'SFMono-Regular', Consolas, monospace; }
+  .stats-row{ display:flex; gap:10px; margin-bottom: 14px; }
+  .stat{ flex:1; background: var(--card); border-radius: 14px; padding: 12px; text-align:center; }
+  .stat .n{ font-size: 22px; font-weight: 700; }
+  .stat .l{ font-size: 11px; color: var(--text-secondary); margin-top:2px; }
 
-  footer{
-    margin-top:30px; font-size:12px; color:var(--ink-soft); line-height:1.6;
-    border-top:1px solid var(--paper-line); padding-top:14px;
+  .field-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background: var(--accent-soft); color: var(--accent);
+    border-radius: 16px; padding: 6px 10px; font-size: 13px; font-weight:600;
+    margin: 3px 6px 3px 0;
+  }
+  .field-chip button{ background:none; border:none; color: var(--accent); cursor:pointer; font-size:14px; line-height:1; padding:0; }
+
+  /* Tab bar */
+  nav.tabbar{
+    position: fixed; bottom:0; left:0; right:0;
+    background: rgba(255,255,255,0.94);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+    display:flex;
+    padding-bottom: env(safe-area-inset-bottom);
+    z-index: 10;
+  }
+  nav.tabbar button{
+    flex:1; background:none; border:none; padding: 8px 4px 6px;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    color: var(--text-secondary); font-family: inherit; font-size: 10.5px; font-weight:600;
+    cursor:pointer;
+  }
+  nav.tabbar button.active{ color: var(--accent); }
+  nav.tabbar svg{ width:24px; height:24px; }
+
+  .panel{ display:none; padding-bottom: 20px; }
+  .panel.active{ display:block; }
+
+  /* Auth screen */
+  .auth-wrap{ max-width: 360px; margin: 18vh auto 0; padding: 0 20px; }
+  .auth-wrap h1{ font-size: 26px; font-weight:700; text-align:center; margin-bottom:4px; }
+  .auth-wrap .sub{ text-align:center; color: var(--text-secondary); font-size: 14px; margin-bottom: 26px; }
+  .auth-wrap input{ margin-bottom: 10px; }
+  .auth-error{ color: var(--danger); font-size: 13px; margin-top: 8px; text-align:center; }
+  .auth-switch{ text-align:center; margin-top: 16px; font-size: 13.5px; color: var(--text-secondary); }
+
+  @media print{
+    nav.tabbar, header.topbar .signout-row, .btn-row{ display:none !important; }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <header>
-    <p class="eyebrow">Field Guide — Blood Sugar Impact</p>
-    <h1>The Metabolic Ledger</h1>
-    <p class="sub">Log a food, get its rating, and see the pattern build over time.</p>
-    <p class="already" id="signOutRow" style="display:none;">Signed in as <span id="whoAmI"></span> · <button class="ghost" id="signOutBtn" style="padding:4px 10px;">Sign out</button></p>
+<div id="authScreen" class="auth-wrap">
+  <h1>Ledger</h1>
+  <p class="sub">Food and body tracking, built for you</p>
+  <input type="text" id="authEmail" placeholder="Email" autocomplete="username">
+  <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password">
+  <button class="btn btn-primary" id="signInBtn">Sign In</button>
+  <p class="auth-error" id="authError"></p>
+  <p class="auth-switch">No account yet? <button class="btn-text" id="createAcctBtn">Create one</button></p>
+</div>
+
+<div id="appShell" style="display:none;">
+  <header class="topbar">
+    <div class="signout-row">
+      <h1>Ledger</h1>
+      <span>Signed in as <span id="whoAmI"></span> · <button class="btn-text" id="signOutBtn" style="padding:0;">Sign out</button></span>
+    </div>
   </header>
 
-  <div id="authScreen" class="card">
-    <label for="authEmail">Email</label>
-    <input type="text" id="authEmail" placeholder="you@example.com" autocomplete="username">
-    <label for="authPassword" style="margin-top:12px;">Password</label>
-    <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password">
-    <div class="row">
-      <button class="primary" id="signInBtn" style="flex:1;">Sign in</button>
-    </div>
-    <p class="already" id="authError"></p>
-    <p class="already" style="margin-top:14px;">No account yet? <button class="ghost" id="createAcctBtn" style="padding:4px 10px;">Create one</button></p>
-  </div>
+  <div class="wrap">
 
-  <div id="appContent" style="display:none;">
-    <nav class="tabs">
-      <button id="tabLogBtn" class="active">Log a food</button>
-      <button id="tabHistoryBtn">History &amp; habits</button>
-      <button id="tabSummaryBtn">Summary</button>
-    </nav>
-
+    <!-- LOG PANEL -->
     <div id="panelLog" class="panel active">
       <div class="card">
-        <div class="row wrap-buttons" style="margin-bottom:14px;">
-          <button class="ghost" id="modeItemBtn" style="flex:1; color:var(--ink); border-color:var(--teal);">Single item</button>
-          <button class="ghost" id="modeMealBtn" style="flex:1;">Meal (multiple ingredients)</button>
+        <label class="field-label">Meal</label>
+        <div class="segmented" id="mealTypeSegment">
+          <button data-meal="Breakfast" class="active">Breakfast</button>
+          <button data-meal="Lunch">Lunch</button>
+          <button data-meal="Snack">Snack</button>
+          <button data-meal="Dinner">Dinner</button>
+          <button data-meal="Late Night Snack">Late Night</button>
         </div>
-
-        <div id="singleForm">
-          <label for="foodInput">What did you eat or buy?</label>
-          <input type="text" id="foodInput" placeholder="e.g. marble cheddar, sourdough rye, granola bar">
-          <div class="row">
-            <button class="primary" id="checkBtn" style="flex:1;">Check it</button>
-          </div>
-          <div id="resultArea"></div>
-        </div>
-
-        <div id="mealForm" style="display:none;">
-          <label for="mealNameInput">Meal name</label>
-          <input type="text" id="mealNameInput" placeholder="e.g. Spaghetti">
-          <label style="margin-top:12px;" for="mealIngredientsInput">Ingredients (comma-separated)</label>
-          <textarea id="mealIngredientsInput" placeholder="Italian sausage, pasta, lean ground beef, onion, carrots, mushrooms, bell peppers"></textarea>
-          <div class="row">
-            <button class="primary" id="checkMealBtn" style="flex:1;">Check meal</button>
-          </div>
-          <div id="mealResultArea"></div>
+        <label class="field-label" style="margin-top:14px;">What did you eat?</label>
+        <textarea id="ingredientsInput" placeholder="e.g. eggs, avocado mayo, cucumber, sourdough rye"></textarea>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="checkMealBtn">Check it</button>
         </div>
       </div>
+      <div id="logResultArea"></div>
     </div>
 
-    <div id="panelHistory" class="panel">
-      <div id="historyArea"><p class="loading">Loading your log…</p></div>
+    <!-- JOURNAL PANEL -->
+    <div id="panelJournal" class="panel">
+      <div id="journalArea"><p class="empty">Loading…</p></div>
     </div>
 
+    <!-- SUMMARY PANEL -->
     <div id="panelSummary" class="panel">
       <div id="summaryArea"></div>
     </div>
+
+    <!-- BODY PANEL -->
+    <div id="panelBody" class="panel">
+      <div class="card">
+        <label class="field-label">Tracked fields</label>
+        <div id="fieldChips"></div>
+        <div class="btn-row" style="margin-top:10px;">
+          <input type="text" id="newFieldInput" placeholder="e.g. Weight, Left Foot" style="flex:2;">
+          <button class="btn btn-secondary" id="addFieldBtn" style="flex:1;">Add</button>
+        </div>
+      </div>
+
+      <div class="card" id="bodyFormCard" style="display:none;">
+        <label class="field-label">Date</label>
+        <input type="date" id="bodyDateInput">
+        <div id="bodyFieldInputs" style="margin-top:12px;"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="saveBodyBtn">Save entry</button>
+        </div>
+      </div>
+
+      <div id="bodyEntriesArea"></div>
+    </div>
+
   </div>
 
-  <footer>
-    General food-quality guidance, not personalized medical advice. Ratings are a starting point — pair this with guidance from your doctor or dietitian.
-  </footer>
+  <nav class="tabbar">
+    <button id="tabLogBtn" class="active" data-tab="log">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+      Log
+    </button>
+    <button id="tabJournalBtn" data-tab="journal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+      Journal
+    </button>
+    <button id="tabSummaryBtn" data-tab="summary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6v4H9z"/><path d="M6 5H5a1 1 0 00-1 1v14a1 1 0 001 1h14a1 1 0 001-1V6a1 1 0 00-1-1h-1"/><path d="M8 12h8M8 16h5"/></svg>
+      Summary
+    </button>
+    <button id="tabBodyBtn" data-tab="body">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 8.6c0 4.4-8.8 10.4-8.8 10.4S3.2 13 3.2 8.6a4.6 4.6 0 018.8-2 4.6 4.6 0 018.8 2z"/></svg>
+      Body
+    </button>
+  </nav>
 </div>
 
 <script type="module">
@@ -223,7 +276,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/fireba
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-/* ---------- PASTE YOUR EXISTING FIREBASE CONFIG HERE (the same project your other 2 apps use) ---------- */
 const firebaseConfig = {
   apiKey: "AIzaSyATdyW05921fNz_wyZ3zjYVF4o44mm_tyg",
   authDomain: "hallarc.firebaseapp.com",
@@ -283,6 +335,7 @@ const DICTIONARY = [
   {k:"pork", s:6, c:"Protein", n:"Protein-dense; leaner cuts score higher."},
   {k:"bacon", s:4, c:"Processed meat", n:"Cured and high in sodium and saturated fat — occasional, not daily."},
   {k:"sausage", s:4, c:"Processed meat", n:"Often has fillers and higher sodium — occasional, not daily."},
+  {k:"italian sausage", s:4, c:"Processed meat", n:"Often has fillers and higher sodium — occasional, not daily."},
   {k:"deli meat", s:4, c:"Processed meat", n:"Processed and salty — occasional, not daily."},
   {k:"lentils", s:8, c:"Legume", n:"Fiber and protein slow the carb digestion considerably."},
   {k:"chickpeas", s:8, c:"Legume", n:"Fiber and protein slow the carb digestion considerably."},
@@ -318,13 +371,16 @@ const DICTIONARY = [
   {k:"crackers", s:3, c:"Grain / Snack", n:"Usually refined flour, easy to eat a lot fast."},
   {k:"pretzel", s:2, c:"Snack", n:"Refined starch with little else going for it nutritionally."},
   {k:"chips", s:2, c:"Snack", n:"Refined starch plus fried oil and salt."},
-  {k:"granola", s:3, c:"Grain / Snack", n:"Usually has added sugar and oil despite the health-food image — check the label."},
-  {k:"cereal", s:2, c:"Grain / Snack", n:"Most boxed cereal is refined grain plus added sugar."},
   {k:"kettle corn", s:3, c:"Grain / Snack", n:"Coated in sugar and oil — a different food from plain popcorn."},
   {k:"movie theater popcorn", s:3, c:"Grain / Snack", n:"Usually drenched in oil and salt — a different food from plain air-popped."},
   {k:"buttered popcorn", s:4, c:"Grain / Snack", n:"Added butter/oil brings this down from plain air-popped."},
   {k:"microwave popcorn", s:4, c:"Grain / Snack", n:"Often has added oil and salt baked in — check the label."},
-  {k:"popcorn", s:7, c:"Grain / Snack", n:"Whole grain and fiber-rich in its plain, air-popped form — a genuinely good snack choice. Butter, caramel, or heavy salt versions score lower."},
+  {k:"popcorn", s:7, c:"Grain / Snack", n:"Whole grain and fiber-rich in its plain, air-popped form — a genuinely good snack choice."},
+  {k:"granola", s:3, c:"Grain / Snack", n:"Usually has added sugar and oil despite the health-food image — check the label."},
+  {k:"cereal", s:2, c:"Grain / Snack", n:"Most boxed cereal is refined grain plus added sugar."},
+  {k:"pork and cabbage dumplings", s:6, c:"Mixed dish", n:"Wrapper is refined flour, but meat and cabbage filling moderate it — pan-fried adds more oil than boiled."},
+  {k:"boiled dumplings", s:5, c:"Mixed dish", n:"Refined flour wrapper is the main driver; boiling adds no extra fat, filling varies the rest."},
+  {k:"dumplings", s:5, c:"Mixed dish", n:"Mostly refined flour wrapper — filling and cooking method (boiled vs fried) shift this some."},
   {k:"blueberries", s:7, c:"Fruit", n:"High fiber, lower sugar than most fruit."},
   {k:"strawberries", s:7, c:"Fruit", n:"High fiber, lower sugar than most fruit."},
   {k:"berries", s:7, c:"Fruit", n:"High fiber, lower sugar than most fruit."},
@@ -365,7 +421,7 @@ const BANDS = [
   {label:"minimize",  range:[1,2.49], color:"var(--minimize)", repScore:1.5},
 ];
 function band(score){
-  if(score===null||score===undefined) return {label:"not in ledger", color:"var(--unknown)"};
+  if(score===null||score===undefined) return {label:"unrated", color:"var(--unknown)"};
   for(const b of BANDS){ if(score>=b.range[0]) return b; }
   return BANDS[BANDS.length-1];
 }
@@ -381,212 +437,19 @@ const APP_TIMEZONE = 'America/Los_Angeles';
 function fmtDate(iso){
   return new Date(iso).toLocaleDateString('en-US',{month:'short', day:'numeric', year:'numeric', timeZone: APP_TIMEZONE});
 }
+function fmtTime(iso){
+  return new Date(iso).toLocaleTimeString('en-US',{hour:'numeric', minute:'2-digit', timeZone: APP_TIMEZONE});
+}
 function todayInputValue(){
-  return new Date().toLocaleDateString('en-CA',{timeZone: APP_TIMEZONE}); // en-CA formats as YYYY-MM-DD
+  return new Date().toLocaleDateString('en-CA',{timeZone: APP_TIMEZONE});
 }
 function dateInputToISO(dateStr){
   return new Date(dateStr + 'T12:00:00').toISOString();
 }
-
-/* ---------- Storage ---------- */
-let DATA = {}; // slug -> entry
-let dataLoaded = false;
-
-async function loadData(){
-  if(!currentUid) return;
-  try{
-    const ref = doc(db, 'users', currentUid, 'foodlog', 'data');
-    const snap = await getDoc(ref);
-    DATA = snap.exists() ? (snap.data().payload ? JSON.parse(snap.data().payload) : {}) : {};
-  }catch(e){
-    DATA = {};
-  }
-  migrateToDatesArray();
-  lastKnownEntryCount = Object.keys(DATA).length;
-  dataLoaded = true;
-}
-function migrateToDatesArray(){
-  // Older entries stored count/firstLogged/lastLogged instead of a dates array.
-  // Single occurrence keeps its one date; repeats keep first+last only —
-  // the in-between occurrences were never recorded, so they can't be recovered.
-  Object.values(DATA).forEach(e=>{
-    if(!e.dates){
-      if(e.count && e.count > 1 && e.firstLogged && e.lastLogged && e.firstLogged !== e.lastLogged){
-        e.dates = [e.firstLogged, e.lastLogged];
-      } else {
-        e.dates = [e.lastLogged || e.firstLogged || new Date().toISOString()];
-      }
-      delete e.count; delete e.firstLogged; delete e.lastLogged;
-    }
-  });
-}
-async function saveData(){
-  if(!currentUid) return false;
-  const keys = Object.keys(DATA).length;
-  if(keys === 0 && lastKnownEntryCount > 0){
-    console.error('Refused to save: DATA is empty but was previously non-empty. Not overwriting Firestore.');
-    return false;
-  }
-  try{
-    const ref = doc(db, 'users', currentUid, 'foodlog', 'data');
-    await setDoc(ref, { payload: JSON.stringify(DATA), updatedAt: new Date().toISOString() });
-    lastKnownEntryCount = keys;
-    return true;
-  }catch(e){
-    return false;
-  }
-}
-let lastKnownEntryCount = 0;
-
-/* ---------- Tabs ---------- */
-const tabLogBtn = document.getElementById('tabLogBtn');
-const tabHistoryBtn = document.getElementById('tabHistoryBtn');
-const tabSummaryBtn = document.getElementById('tabSummaryBtn');
-const panelLog = document.getElementById('panelLog');
-const panelHistory = document.getElementById('panelHistory');
-const panelSummary = document.getElementById('panelSummary');
-
-function deactivateAllTabs(){
-  [tabLogBtn, tabHistoryBtn, tabSummaryBtn].forEach(b=>b.classList.remove('active'));
-  [panelLog, panelHistory, panelSummary].forEach(p=>p.classList.remove('active'));
-}
-tabLogBtn.addEventListener('click', ()=>{
-  deactivateAllTabs();
-  tabLogBtn.classList.add('active'); panelLog.classList.add('active');
-});
-tabHistoryBtn.addEventListener('click', ()=>{
-  deactivateAllTabs();
-  tabHistoryBtn.classList.add('active'); panelHistory.classList.add('active');
-  renderHistory('all');
-});
-tabSummaryBtn.addEventListener('click', ()=>{
-  deactivateAllTabs();
-  tabSummaryBtn.classList.add('active'); panelSummary.classList.add('active');
-  renderSummary();
-});
-
-/* ---------- Log tab logic ---------- */
-const foodInput = document.getElementById('foodInput');
-const checkBtn = document.getElementById('checkBtn');
-const resultArea = document.getElementById('resultArea');
-
-checkBtn.addEventListener('click', handleCheck);
-foodInput.addEventListener('keydown', e=>{ if(e.key==='Enter') handleCheck(); });
-
-/* ---------- Mode toggle: single item vs meal ---------- */
-const modeItemBtn = document.getElementById('modeItemBtn');
-const modeMealBtn = document.getElementById('modeMealBtn');
-const singleForm = document.getElementById('singleForm');
-const mealForm = document.getElementById('mealForm');
-
-modeItemBtn.addEventListener('click', ()=>{
-  singleForm.style.display = 'block'; mealForm.style.display = 'none';
-  modeItemBtn.style.color = 'var(--ink)'; modeItemBtn.style.borderColor = 'var(--teal)';
-  modeMealBtn.style.color = 'var(--ink-soft)'; modeMealBtn.style.borderColor = 'var(--paper-line)';
-});
-modeMealBtn.addEventListener('click', ()=>{
-  mealForm.style.display = 'block'; singleForm.style.display = 'none';
-  modeMealBtn.style.color = 'var(--ink)'; modeMealBtn.style.borderColor = 'var(--teal)';
-  modeItemBtn.style.color = 'var(--ink-soft)'; modeItemBtn.style.borderColor = 'var(--paper-line)';
-});
-
-/* ---------- Meal logging ---------- */
-function lookupForMeal(name){
-  const slug = slugify(name);
-  if(DATA[slug]) return { score: DATA[slug].score, found: true };
-  const auto = lookupAuto(name);
-  if(auto) return { score: auto.s, found: true };
-  return { found: false };
-}
-
-document.getElementById('checkMealBtn').addEventListener('click', async ()=>{
-  const mealName = document.getElementById('mealNameInput').value.trim();
-  const raw = document.getElementById('mealIngredientsInput').value.trim();
-  const mealResultArea = document.getElementById('mealResultArea');
-  if(!mealName || !raw) return;
-  if(!dataLoaded) await loadData();
-
-  const items = raw.split(',').map(s=>s.trim()).filter(Boolean);
-  const results = items.map(name=>({ name, ...lookupForMeal(name) }));
-  const found = results.filter(r=>r.found);
-  const missing = results.filter(r=>!r.found);
-
-  if(found.length === 0){
-    mealResultArea.innerHTML = `<p class="already">None of these ingredients are rated yet — log them individually first (Single item mode), then come back and group them into this meal.</p>`;
-    return;
-  }
-
-  const mealScore = Math.round((found.reduce((sum,r)=>sum+r.score,0) / found.length) * 10) / 10;
-  const b = band(mealScore);
-  const breakdown = found.map(r=>`${r.name} (${r.score})`).join(', ');
-  const missingText = missing.length
-    ? `<p class="already">Not yet rated, excluded from the average: ${missing.map(r=>r.name).join(', ')}. Log these individually first for a more accurate meal score.</p>`
-    : '';
-
-  mealResultArea.innerHTML = `
-    <div class="result">
-      <div class="result-head">
-        ${badgeHTML(mealScore,'lg')}
-        <div>
-          <div class="result-title">${mealName}</div>
-          <div class="result-meta" style="color:${b.color}">Meal — ${b.label} · from ${found.length} ingredient${found.length===1?'':'s'}</div>
-        </div>
-      </div>
-      <p class="result-note">${breakdown}</p>
-      ${missingText}
-      <label style="margin-top:14px;">Date</label>
-      <input type="date" id="mealEntryDate" value="${todayInputValue()}">
-      <div class="row">
-        <button class="primary" id="saveMealBtn" style="flex:1;">Save meal to log</button>
-      </div>
-    </div>
-  `;
-
-  document.getElementById('saveMealBtn').addEventListener('click', async ()=>{
-    const slug = slugify(mealName);
-    const chosenDate = document.getElementById('mealEntryDate').value;
-    const now = chosenDate ? dateInputToISO(chosenDate) : new Date().toISOString();
-    const existing = DATA[slug];
-    DATA[slug] = {
-      name: mealName, score: mealScore, category: 'Meal',
-      note: `Made of: ${breakdown}.`,
-      userNote: existing ? existing.userNote : '',
-      source: 'meal',
-      ingredients: found.map(r=>({ name: r.name, score: r.score })),
-      dates: existing ? [...existing.dates, now].sort() : [now]
-    };
-    await saveData();
-    const finalCount = DATA[slug].dates.length;
-    mealResultArea.innerHTML = `<p class="already">Saved "${mealName}" as a meal — rated ${mealScore}/10. Seen ${finalCount} time${finalCount===1?'':'s'}.</p>`;
-    document.getElementById('mealNameInput').value = '';
-    document.getElementById('mealIngredientsInput').value = '';
-  });
-});
-
-async function handleCheck(){
-  const raw = foodInput.value.trim();
-  if(!raw) return;
-  if(!dataLoaded) await loadData();
-  const slug = slugify(raw);
-
-  if(DATA[slug]){
-    renderAlreadyLogged(slug);
-    return;
-  }
-  const auto = lookupAuto(raw);
-  if(auto){
-    const b = band(auto.s);
-    renderAutoResult(raw, slug, auto, b);
-    return;
-  }
-
-  resultArea.innerHTML = `<p class="already">Searching a nutrition database for "${raw}"…</p>`;
-  const off = await lookupOpenFoodFacts(raw);
-  if(off){
-    renderOffSuggestion(raw, slug, off);
-  } else {
-    renderManualPicker(raw, slug);
-  }
+function badgeHTML(score, size){
+  const b = band(score);
+  const cls = size==='lg' ? 'badge badge-lg' : 'badge';
+  return `<div class="${cls}" style="background:${b.color}">${score!==null&&score!==undefined?score:'?'}</div>`;
 }
 
 /* ---------- Open Food Facts fallback ---------- */
@@ -597,10 +460,13 @@ async function lookupOpenFoodFacts(name){
     if(!res.ok) return null;
     const data = await res.json();
     if(!data.products || data.products.length === 0) return null;
-    const candidate = data.products.find(p=>{
+    const term = name.toLowerCase().trim();
+    const hasNutrients = p => {
       const n = p.nutriments || {};
       return n.carbohydrates_100g !== undefined && (n.sugars_100g !== undefined || n.fiber_100g !== undefined);
-    });
+    };
+    const relevant = data.products.find(p => hasNutrients(p) && (p.product_name || '').toLowerCase().includes(term));
+    const candidate = relevant || data.products.find(hasNutrients);
     if(!candidate) return null;
     const n = candidate.nutriments || {};
     const sugar = n.sugars_100g ?? 0;
@@ -608,492 +474,542 @@ async function lookupOpenFoodFacts(name){
     const carbs = n.carbohydrates_100g ?? 0;
     const protein = n.proteins_100g ?? 0;
     const netCarb = Math.max(carbs - fiber, 0);
-
     let score = 10;
     if(sugar >= 20) score -= 6; else if(sugar >= 10) score -= 4; else if(sugar >= 5) score -= 2; else if(sugar >= 2) score -= 1;
     if(netCarb >= 50) score -= 3; else if(netCarb >= 30) score -= 2; else if(netCarb >= 15) score -= 1;
     if(fiber >= 6) score += 2; else if(fiber >= 3) score += 1;
     if(protein >= 15) score += 1;
     score = Math.max(1, Math.min(10, Math.round(score * 2) / 2));
-
     return {
-      productName: candidate.product_name || name,
-      brand: candidate.brands || '',
-      sugar, fiber, carbs, protein, netCarb,
-      score
+      productName: candidate.product_name || name, brand: candidate.brands || '',
+      sugar, fiber, carbs, protein, netCarb, score, relevanceMatched: !!relevant
     };
+  }catch(e){ return null; }
+}
+
+/* ---------- State & storage ---------- */
+let LOGS = [];        // [{id, mealType, timestamp, items:[{name,score}], avgScore, note}]
+let FOODCACHE = {};   // slug -> {name, score, category, note}
+let BODYFIELDS = [];  // ["Weight", "Left Foot", ...]
+let BODYLOGS = [];    // [{id, date, values:{field: value}}]
+let dataLoaded = false;
+let lastKnownCount = 0;
+
+async function loadData(){
+  if(!currentUid) return;
+  try{
+    const ref = doc(db, 'users', currentUid, 'foodlog', 'v2');
+    const snap = await getDoc(ref);
+    if(snap.exists() && snap.data().payload){
+      const parsed = JSON.parse(snap.data().payload);
+      LOGS = parsed.logs || [];
+      FOODCACHE = parsed.foodCache || {};
+    } else {
+      await migrateLegacyData();
+    }
+    const bodyRef = doc(db, 'users', currentUid, 'bodylog', 'data');
+    const bodySnap = await getDoc(bodyRef);
+    if(bodySnap.exists() && bodySnap.data().payload){
+      const bp = JSON.parse(bodySnap.data().payload);
+      BODYFIELDS = bp.fields || [];
+      BODYLOGS = bp.entries || [];
+    }
   }catch(e){
-    return null;
+    LOGS = []; FOODCACHE = {};
   }
+  lastKnownCount = LOGS.length;
+  dataLoaded = true;
+}
+async function migrateLegacyData(){
+  // Best-effort import from the old per-item catalog format, if it exists.
+  try{
+    const oldRef = doc(db, 'users', currentUid, 'foodlog', 'data');
+    const oldSnap = await getDoc(oldRef);
+    if(!oldSnap.exists() || !oldSnap.data().payload) return;
+    const old = JSON.parse(oldSnap.data().payload);
+    Object.values(old).forEach(e=>{
+      const slug = slugify(e.name);
+      FOODCACHE[slug] = { name: e.name, score: e.score, category: e.category||'', note: e.note||'' };
+      const dates = e.dates || (e.lastLogged ? [e.lastLogged] : [new Date().toISOString()]);
+      const items = (e.source === 'meal' && e.ingredients) ? e.ingredients : [{name: e.name, score: e.score}];
+      dates.forEach(d=>{
+        LOGS.push({
+          id: slug + '-' + d,
+          mealType: e.source === 'meal' ? 'Meal' : 'Unspecified',
+          timestamp: d,
+          items, avgScore: e.score, note: e.userNote || ''
+        });
+      });
+    });
+  }catch(e){ /* nothing to migrate */ }
+}
+async function saveData(){
+  if(!currentUid) return false;
+  if(LOGS.length === 0 && lastKnownCount > 0){
+    console.error('Refused to save: LOGS is empty but was previously non-empty.');
+    return false;
+  }
+  try{
+    const ref = doc(db, 'users', currentUid, 'foodlog', 'v2');
+    await setDoc(ref, { payload: JSON.stringify({logs: LOGS, foodCache: FOODCACHE}), updatedAt: new Date().toISOString() });
+    lastKnownCount = LOGS.length;
+    return true;
+  }catch(e){ return false; }
+}
+async function saveBodyData(){
+  if(!currentUid) return false;
+  try{
+    const ref = doc(db, 'users', currentUid, 'bodylog', 'data');
+    await setDoc(ref, { payload: JSON.stringify({fields: BODYFIELDS, entries: BODYLOGS}), updatedAt: new Date().toISOString() });
+    return true;
+  }catch(e){ return false; }
 }
 
-function renderOffSuggestion(rawName, slug, off){
+/* ---------- Tabs ---------- */
+const tabs = ['Log','Journal','Summary','Body'];
+function switchTab(name){
+  tabs.forEach(t=>{
+    document.getElementById(`tab${t}Btn`).classList.toggle('active', t===name);
+    document.getElementById(`panel${t}`).classList.toggle('active', t===name);
+  });
+  if(name==='Journal') renderJournal();
+  if(name==='Summary') renderSummary();
+  if(name==='Body') renderBody();
+}
+tabs.forEach(t=>{
+  document.getElementById(`tab${t}Btn`).addEventListener('click', ()=> switchTab(t));
+});
+
+/* ---------- Log panel: meal type selector ---------- */
+let selectedMealType = 'Breakfast';
+document.querySelectorAll('#mealTypeSegment button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#mealTypeSegment button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedMealType = btn.dataset.meal;
+  });
+});
+
+/* ---------- Checking a meal (queue-based ingredient resolution) ---------- */
+const ingredientsInput = document.getElementById('ingredientsInput');
+const logResultArea = document.getElementById('logResultArea');
+let mealCheck = null;
+
+function lookupIngredient(name){
+  const slug = slugify(name);
+  if(FOODCACHE[slug]) return { score: FOODCACHE[slug].score, category: FOODCACHE[slug].category, note: FOODCACHE[slug].note, resolved:true };
+  const auto = lookupAuto(name);
+  if(auto) return { score: auto.s, category: auto.c, note: auto.n, resolved:true };
+  return { resolved:false };
+}
+
+document.getElementById('checkMealBtn').addEventListener('click', async ()=>{
+  const raw = ingredientsInput.value.trim();
+  if(!raw) return;
+  if(!dataLoaded) await loadData();
+  const names = raw.split(',').map(s=>s.trim()).filter(Boolean);
+  mealCheck = { mealType: selectedMealType, results: {}, queue: [] };
+  names.forEach(name=>{
+    const r = lookupIngredient(name);
+    if(r.resolved){ mealCheck.results[name] = { score: r.score, category: r.category, note: r.note }; }
+    else { mealCheck.queue.push(name); }
+  });
+  if(mealCheck.queue.length > 0){
+    await resolveNextUnresolved();
+  } else {
+    renderMealSummaryForm();
+  }
+});
+
+async function resolveNextUnresolved(){
+  if(mealCheck.queue.length === 0){ renderMealSummaryForm(); return; }
+  const name = mealCheck.queue[0];
+  logResultArea.innerHTML = `<div class="card"><p class="hint">Looking up "${name}"…</p></div>`;
+  const off = await lookupOpenFoodFacts(name);
+  if(off) renderOffResolveStep(name, off);
+  else renderManualResolveStep(name);
+}
+
+function renderOffResolveStep(name, off){
   const b = band(off.score);
-  const needsNote = off.score <= 4;
   const label = off.brand ? `${off.productName} (${off.brand})` : off.productName;
-  resultArea.innerHTML = `
-    <div class="result">
-      <p class="already">Closest match found: <strong>${label}</strong></p>
-      <div class="result-head">
+  logResultArea.innerHTML = `
+    <div class="card">
+      <p class="hint">Closest match for <strong>${name}</strong>: ${label}${off.relevanceMatched ? '' : ' — <span style="color:var(--limit)">name doesn\'t clearly match, double check</span>'}</p>
+      <div style="display:flex; align-items:center; gap:12px; margin-top:8px;">
         ${badgeHTML(off.score,'lg')}
-        <div>
-          <div class="result-title">${rawName}</div>
-          <div class="result-meta" style="color:${b.color}">Estimated from label data — ${b.label}</div>
-        </div>
+        <div class="hint">${off.carbs}g carbs (${off.fiber}g fiber), ${off.sugar}g sugar, ${off.protein}g protein per 100g</div>
       </div>
-      <p class="result-note">Per 100g: ${off.carbs}g carbs (${off.fiber}g fiber, ${off.netCarb}g net), ${off.sugar}g sugar, ${off.protein}g protein.</p>
-      ${needsNote ? `
-        <label style="margin-top:14px;">What's the trigger, or what could replace it?</label>
-        <textarea id="noteInput" placeholder="e.g. grabbed it when I skipped lunch — could swap for nuts"></textarea>
-      ` : ''}
-      <label style="margin-top:14px;">Date</label>
-      <input type="date" id="entryDate" value="${todayInputValue()}">
-      <div class="row wrap-buttons">
-        <button class="primary" id="acceptOffBtn" style="flex:1;">This is right — save it</button>
-        <button class="ghost" id="rejectOffBtn">Not the right product</button>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="acceptOffBtn">This is right</button>
+        <button class="btn btn-secondary" id="rejectOffBtn">Not it</button>
       </div>
     </div>
   `;
-  document.getElementById('acceptOffBtn').addEventListener('click', async ()=>{
-    const userNote = needsNote ? (document.getElementById('noteInput').value.trim()) : '';
-    const chosenDate = document.getElementById('entryDate').value;
-    const now = chosenDate ? dateInputToISO(chosenDate) : new Date().toISOString();
-    DATA[slug] = {
-      name: rawName, score: off.score, category: 'Packaged product',
-      note: `Estimated from nutrition label: ${off.carbs}g carbs (${off.fiber}g fiber), ${off.sugar}g sugar, ${off.protein}g protein per 100g.`,
-      userNote, source:'openfoodfacts', dates: [now]
-    };
-    await saveData();
-    renderAlreadyLogged(slug);
-    foodInput.value='';
+  document.getElementById('acceptOffBtn').addEventListener('click', ()=>{
+    mealCheck.results[name] = { score: off.score, category: 'Packaged product', note: `Estimated from label: ${off.carbs}g carbs (${off.fiber}g fiber), ${off.sugar}g sugar, ${off.protein}g protein per 100g.` };
+    mealCheck.queue.shift();
+    resolveNextUnresolved();
   });
-  document.getElementById('rejectOffBtn').addEventListener('click', ()=>{
-    renderManualPicker(rawName, slug);
-  });
+  document.getElementById('rejectOffBtn').addEventListener('click', ()=> renderManualResolveStep(name));
 }
 
-function badgeHTML(score, size){
-  const b = band(score);
-  const cls = size==='lg' ? 'badge-lg' : 'badge-sm';
-  return `<div class="${cls}" style="color:${b.color}">${score!==null?score:'?'}</div>`;
-}
-
-function renderAlreadyLogged(slug){
-  const e = DATA[slug];
-  const b = band(e.score);
-  const dates = e.dates || [];
-  const count = dates.length;
-  const first = dates[0], last = dates[dates.length-1];
-  resultArea.innerHTML = `
-    <div class="result">
-      <div class="result-head">
-        ${badgeHTML(e.score,'lg')}
-        <div>
-          <div class="result-title">${e.name}</div>
-          <div class="result-meta" style="color:${b.color}">${e.category} — ${b.label}</div>
-        </div>
+function renderManualResolveStep(name){
+  logResultArea.innerHTML = `
+    <div class="card">
+      <p class="hint">Not found — rate <strong>${name}</strong> yourself. It'll be recognized instantly next time.</p>
+      <div class="btn-row wrap" id="bandButtons" style="flex-wrap:wrap;">
+        ${BANDS.map(b=>`<button type="button" class="btn btn-secondary band-btn" data-score="${b.repScore}" style="flex:1 1 30%; color:${b.color}; background:#F7F7F9;">${b.label}</button>`).join('')}
       </div>
-      <p class="already">You've logged this before — first on ${fmtDate(first)}, seen ${count} time${count===1?'':'s'}, last on ${fmtDate(last)}.</p>
-      ${e.note ? `<p class="result-note">${e.note}</p>` : ''}
-      ${e.userNote ? `<p class="result-note" style="font-style:italic;color:var(--ink-soft)">Your note: ${e.userNote}</p>` : ''}
-      <label style="margin-top:14px;">Date</label>
-      <input type="date" id="entryDate" value="${todayInputValue()}">
-      <div class="row">
-        <button class="primary" id="logAgainBtn">Log it again</button>
-      </div>
-    </div>
-  `;
-  document.getElementById('logAgainBtn').addEventListener('click', async ()=>{
-    const chosenDate = document.getElementById('entryDate').value;
-    const iso = chosenDate ? dateInputToISO(chosenDate) : new Date().toISOString();
-    e.dates = [...(e.dates||[]), iso].sort();
-    await saveData();
-    renderAlreadyLogged(slug);
-    foodInput.value='';
-  });
-}
-
-function renderAutoResult(rawName, slug, auto, b){
-  const needsNote = auto.s <= 4;
-  resultArea.innerHTML = `
-    <div class="result">
-      <div class="result-head">
-        ${badgeHTML(auto.s,'lg')}
-        <div>
-          <div class="result-title">${rawName}</div>
-          <div class="result-meta" style="color:${b.color}">${auto.c} — ${b.label}</div>
-        </div>
-      </div>
-      <p class="result-note">${auto.n}</p>
-      ${needsNote ? `
-        <label style="margin-top:14px;">What's the trigger, or what could replace it?</label>
-        <textarea id="noteInput" placeholder="e.g. grabbed it when I skipped lunch — could swap for nuts"></textarea>
-      ` : ''}
-      <label style="margin-top:14px;">Date</label>
-      <input type="date" id="entryDate" value="${todayInputValue()}">
-      <div class="row">
-        <button class="primary" id="saveEntryBtn">Save to log</button>
-      </div>
-    </div>
-  `;
-  document.getElementById('saveEntryBtn').addEventListener('click', async ()=>{
-    const userNote = needsNote ? (document.getElementById('noteInput').value.trim()) : '';
-    const chosenDate = document.getElementById('entryDate').value;
-    const now = chosenDate ? dateInputToISO(chosenDate) : new Date().toISOString();
-    DATA[slug] = {
-      name: rawName, score: auto.s, category: auto.c, note: auto.n,
-      userNote, source:'auto', dates: [now]
-    };
-    await saveData();
-    renderAlreadyLogged(slug);
-    foodInput.value='';
-  });
-}
-
-function renderManualPicker(rawName, slug){
-  resultArea.innerHTML = `
-    <div class="result">
-      <p class="already">No nutrition label match found either — rate it yourself and it'll be recognized instantly next time.</p>
-      <label>How does this treat your blood sugar?</label>
-      <div class="row wrap-buttons" id="bandButtons">
-        ${BANDS.map(b=>`<button type="button" class="band-btn" data-label="${b.label}" data-score="${b.repScore}" style="color:${b.color}"><span>${b.label}</span></button>`).join('')}
-      </div>
-      <label style="margin-top:14px;">Category (optional)</label>
-      <input type="text" id="catInput" placeholder="e.g. snack, condiment, dairy">
-      <label style="margin-top:14px;" id="noteLabel">Note (what's the trigger, or a replacement idea?)</label>
-      <textarea id="noteInput" placeholder="Optional unless this scores low"></textarea>
-      <label style="margin-top:14px;">Date</label>
-      <input type="date" id="entryDate" value="${todayInputValue()}">
-      <div class="row">
-        <button class="primary" id="saveManualBtn" disabled>Pick a rating first</button>
+      <input type="text" id="catInput" placeholder="Category (optional)" style="margin-top:10px;">
+      <div class="btn-row">
+        <button class="btn btn-primary" id="saveManualBtn" disabled>Pick a rating first</button>
       </div>
     </div>
   `;
   let chosen = null;
-  const buttons = resultArea.querySelectorAll('.band-btn');
+  const buttons = logResultArea.querySelectorAll('.band-btn');
   const saveBtn = document.getElementById('saveManualBtn');
   buttons.forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      buttons.forEach(b=>b.classList.remove('selected'));
-      btn.classList.add('selected');
-      chosen = { label: btn.dataset.label, score: parseFloat(btn.dataset.score) };
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Save to log';
+      buttons.forEach(b=> b.style.outline = 'none');
+      btn.style.outline = `2px solid ${btn.style.color}`;
+      chosen = parseFloat(btn.dataset.score);
+      saveBtn.disabled = false; saveBtn.textContent = 'Save and continue';
     });
   });
-  saveBtn.addEventListener('click', async ()=>{
-    if(!chosen) return;
-    const chosenDate = document.getElementById('entryDate').value;
-    const now = chosenDate ? dateInputToISO(chosenDate) : new Date().toISOString();
+  saveBtn.addEventListener('click', ()=>{
+    if(chosen===null) return;
     const cat = document.getElementById('catInput').value.trim() || 'Uncategorized';
-    const note = document.getElementById('noteInput').value.trim();
-    DATA[slug] = {
-      name: rawName, score: chosen.score, category: cat, note: '',
-      userNote: note, source:'manual', dates: [now]
-    };
-    await saveData();
-    renderAlreadyLogged(slug);
-    foodInput.value='';
+    mealCheck.results[name] = { score: chosen, category: cat, note: '' };
+    mealCheck.queue.shift();
+    resolveNextUnresolved();
   });
 }
 
-/* ---------- Meal breakdown helpers ---------- */
-function mealBreakdownHTML(e){
-  if(!e.ingredients || e.ingredients.length===0) return '';
-  const sorted = [...e.ingredients].sort((a,b)=>a.score-b.score);
-  const chips = sorted.map(ing=>{
-    const ib = band(ing.score);
-    return `<span style="display:inline-flex;align-items:center;gap:5px;border:1px solid ${ib.color};color:${ib.color};border-radius:2px;padding:3px 8px;font-family:'SFMono-Regular',Consolas,monospace;font-size:11px;margin:3px 6px 0 0;">${ing.name} · ${ing.score}</span>`;
+function renderMealSummaryForm(){
+  const items = Object.entries(mealCheck.results).map(([name,r])=>({name, score:r.score, category:r.category, note:r.note}));
+  const avg = Math.round((items.reduce((s,r)=>s+r.score,0)/items.length)*10)/10;
+  const b = band(avg);
+  const sorted = [...items].sort((a,b2)=>a.score-b2.score);
+  const chips = sorted.map(i=>{
+    const ib = band(i.score);
+    return `<span class="chip"><span class="dot" style="background:${ib.color}">${i.score}</span>${i.name}</span>`;
   }).join('');
-  return `<div style="margin-top:6px;">${chips}</div>`;
-}
-function mealImprovementTip(e){
-  if(!e.ingredients || e.ingredients.length===0) return '';
-  const sorted = [...e.ingredients].sort((a,b)=>a.score-b.score);
-  const weakest = sorted[0];
-  if(weakest.score >= 7) return '';
-  const n = e.ingredients.length;
-  const improvedAvg = Math.round((((e.score*n) - weakest.score + 8) / n) * 10) / 10;
-  return `<div class="li-usernote">Weakest link: <strong>${weakest.name}</strong> (${weakest.score}/10). Swapping it for something closer to an 8 would move this meal from ${e.score} to about ${improvedAvg}.</div>`;
-}
-
-/* ---------- CSV export ---------- */
-function csvEscape(val){
-  const s = String(val ?? '');
-  return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
-}
-function buildCSVRows(entries){
-  const rows = [['Date','Meal','Item','Score','Band','Category','Note','Your Note']];
-  entries.forEach(e=>{
-    const dates = e.dates || [];
-    if(e.source === 'meal' && e.ingredients){
-      dates.forEach(d=>{
-        rows.push([fmtDate(d), '', e.name, e.score, band(e.score).label, 'Meal', e.note||'', e.userNote||'']);
-        e.ingredients.forEach(ing=>{
-          rows.push([fmtDate(d), e.name, ing.name, ing.score, band(ing.score).label, '', '', '']);
-        });
-      });
-    } else {
-      dates.forEach(d=>{
-        rows.push([fmtDate(d), '', e.name, e.score, band(e.score).label, e.category||'', e.note||'', e.userNote||'']);
-      });
-    }
+  logResultArea.innerHTML = `
+    <div class="card">
+      <div style="display:flex; align-items:center; gap:12px;">
+        ${badgeHTML(avg,'lg')}
+        <div>
+          <div class="entry-name">${mealCheck.mealType}</div>
+          <div class="entry-meta" style="color:${b.color}; font-weight:600;">${b.label}</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;">${chips}</div>
+      <label class="field-label" style="margin-top:14px;">Note (optional)</label>
+      <textarea id="mealNoteInput" placeholder="Anything worth remembering about this one"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="saveMealBtn">Save to journal</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('saveMealBtn').addEventListener('click', async ()=>{
+    const note = document.getElementById('mealNoteInput').value.trim();
+    const now = new Date().toISOString();
+    const entry = {
+      id: 'log-' + now + '-' + Math.random().toString(36).slice(2,7),
+      mealType: mealCheck.mealType,
+      timestamp: now,
+      items: items.map(i=>({name:i.name, score:i.score})),
+      avgScore: avg,
+      note
+    };
+    LOGS.push(entry);
+    items.forEach(i=>{
+      FOODCACHE[slugify(i.name)] = { name: i.name, score: i.score, category: i.category, note: i.note };
+    });
+    await saveData();
+    logResultArea.innerHTML = `<div class="card"><p class="hint">Saved — ${mealCheck.mealType} rated ${avg}/10.</p></div>`;
+    ingredientsInput.value = '';
+    mealCheck = null;
   });
-  return rows;
-}
-function downloadCSV(){
-  const entries = Object.values(DATA);
-  const rows = buildCSVRows(entries);
-  const csv = rows.map(r=>r.map(csvEscape).join(',')).join('\n');
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `metabolic-ledger-${todayInputValue()}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
-/* ---------- History tab ---------- */
-let currentFilter = 'all';
-
-async function renderHistory(filter){
-  currentFilter = filter || currentFilter;
-  const historyArea = document.getElementById('historyArea');
+/* ---------- Journal ---------- */
+let journalFilter = 'all';
+async function renderJournal(){
+  const journalArea = document.getElementById('journalArea');
   if(!dataLoaded) await loadData();
-  const entries = Object.entries(DATA).map(([slug,e])=>({slug,...e}));
-
-  if(entries.length===0){
-    historyArea.innerHTML = `<p class="empty">Nothing logged yet — head to the Log tab and start with whatever you last ate.</p>`;
+  if(LOGS.length===0){
+    journalArea.innerHTML = `<p class="empty">Nothing logged yet — head to the Log tab.</p>`;
     return;
   }
-
-  historyArea.innerHTML = `
-    <div id="statsBlock"></div>
-    <label for="historySearch">Search</label>
-    <input type="text" id="historySearch" placeholder="e.g. bread, cheddar, spaghetti">
-    <div class="row wrap-buttons" style="margin:10px 0 6px;">
-      <button class="ghost" data-f="all">All</button>
-      <button class="ghost" data-f="trouble">Trouble spots</button>
-      <button class="ghost" data-f="frequent">Most frequent</button>
-      <button class="ghost" id="csvBtn">Download CSV</button>
+  journalArea.innerHTML = `
+    <div id="journalStats"></div>
+    <input type="text" id="journalSearch" placeholder="Search meals or ingredients">
+    <div class="btn-row" style="margin:10px 0 4px;">
+      <button class="btn btn-secondary" data-jf="all">All</button>
+      <button class="btn btn-secondary" data-jf="trouble">Trouble spots</button>
+      <button class="btn btn-secondary" id="journalCsvBtn">Export CSV</button>
     </div>
-    <label id="listHeading" style="margin-top:10px;"></label>
-    <ul class="log-list" id="logList"></ul>
+    <ul class="row-list" id="journalList" style="list-style:none; padding:0; margin-top:10px;"></ul>
   `;
-
-  document.getElementById('csvBtn').addEventListener('click', downloadCSV);
-  historyArea.querySelectorAll('[data-f]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ currentFilter = btn.dataset.f; updateHistoryList(); });
+  document.getElementById('journalCsvBtn').addEventListener('click', downloadJournalCSV);
+  journalArea.querySelectorAll('[data-jf]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ journalFilter = btn.dataset.jf; updateJournalList(); });
   });
-  document.getElementById('historySearch').addEventListener('input', updateHistoryList);
-
-  updateHistoryList();
+  document.getElementById('journalSearch').addEventListener('input', updateJournalList);
+  updateJournalList();
 }
-
-function updateHistoryList(){
-  const entries = Object.entries(DATA).map(([slug,e])=>({slug,...e}));
-  const searchTerm = (document.getElementById('historySearch')?.value || '').trim().toLowerCase();
-
-  const bandCounts = {excellent:0, good:0, moderate:0, limit:0, minimize:0};
-  let weightedSum=0, totalCount=0;
-  entries.forEach(e=>{
-    const c = (e.dates||[]).length;
-    bandCounts[band(e.score).label] += 1;
-    weightedSum += e.score * c;
-    totalCount += c;
-  });
-  const avg = totalCount>0 ? Math.round((weightedSum/totalCount)*10)/10 : 0;
-
-  document.getElementById('statsBlock').innerHTML = `
-    <div class="stats">
-      <div class="stat"><div class="n">${entries.length}</div><div class="l">unique items</div></div>
-      <div class="stat"><div class="n">${avg}</div><div class="l">weighted avg /10</div></div>
-      <div class="stat"><div class="n">${bandCounts.limit + bandCounts.minimize}</div><div class="l">in limit/minimize</div></div>
+function updateJournalList(){
+  const searchTerm = (document.getElementById('journalSearch')?.value || '').trim().toLowerCase();
+  const totalMeals = LOGS.length;
+  const weightedAvg = Math.round((LOGS.reduce((s,e)=>s+e.avgScore,0)/totalMeals)*10)/10;
+  const troubleCount = LOGS.filter(e=> e.items.some(i=>i.score<=4)).length;
+  document.getElementById('journalStats').innerHTML = `
+    <div class="stats-row">
+      <div class="stat"><div class="n">${totalMeals}</div><div class="l">meals logged</div></div>
+      <div class="stat"><div class="n">${weightedAvg}</div><div class="l">avg score</div></div>
+      <div class="stat"><div class="n">${troubleCount}</div><div class="l">had a weak spot</div></div>
     </div>
   `;
-
-  let searched = entries;
+  let entries = [...LOGS];
   if(searchTerm){
-    searched = entries.filter(e=>{
-      if(e.name.toLowerCase().includes(searchTerm)) return true;
-      if(e.ingredients && e.ingredients.some(ing=>ing.name.toLowerCase().includes(searchTerm))) return true;
-      return false;
-    });
+    entries = entries.filter(e=> e.mealType.toLowerCase().includes(searchTerm) || e.items.some(i=>i.name.toLowerCase().includes(searchTerm)));
   }
-
-  let filtered = searched;
-  let heading = 'All logged items';
-  if(currentFilter==='trouble'){
-    filtered = searched.filter(e=>e.score<=4).sort((a,b)=> (b.dates||[]).length-(a.dates||[]).length);
-    heading = 'Trouble spots (score ≤ 4)';
-  } else if(currentFilter==='frequent'){
-    filtered = [...searched].sort((a,b)=> (b.dates||[]).length-(a.dates||[]).length);
-    heading = 'Most frequently logged';
-  } else {
-    filtered = [...searched].sort((a,b)=> a.score-b.score);
-    heading = 'All logged items (lowest first)';
+  if(journalFilter==='trouble'){
+    entries = entries.filter(e=> e.items.some(i=>i.score<=4));
   }
-  document.getElementById('listHeading').textContent = searchTerm ? `${heading} — matching "${searchTerm}"` : heading;
+  entries.sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp));
 
-  const list = document.getElementById('logList');
-  if(filtered.length===0){
-    list.innerHTML = `<li><span class="empty">Nothing in this view yet.</span></li>`;
+  const list = document.getElementById('journalList');
+  if(entries.length===0){
+    list.innerHTML = `<li><span class="empty">Nothing in this view.</span></li>`;
     return;
   }
   list.innerHTML = '';
-  filtered.forEach(e=>{
-    const b = band(e.score);
-    const dates = e.dates || [];
-    const count = dates.length;
-    const last = dates[dates.length-1];
-    const isMeal = e.source === 'meal';
+  entries.forEach(e=>{
+    const b = band(e.avgScore);
+    const sorted = [...e.items].sort((a,c)=>a.score-c.score);
+    const chips = sorted.map(i=>{
+      const ib = band(i.score);
+      return `<span class="chip"><span class="dot" style="background:${ib.color}">${i.score}</span>${i.name}</span>`;
+    }).join('');
     const li = document.createElement('li');
     li.innerHTML = `
-      <div class="badge-sm" style="color:${b.color}">${e.score}</div>
-      <div class="li-body">
-        <div class="li-top">
-          <div class="li-name">${e.name}</div>
-          <div class="li-count">×${count}</div>
+      ${badgeHTML(e.avgScore)}
+      <div style="flex:1;">
+        <span class="meal-tag">${e.mealType}</span>
+        <div class="entry-meta">${fmtDate(e.timestamp)} · ${fmtTime(e.timestamp)}</div>
+        <div style="margin-top:6px;">${chips}</div>
+        ${e.note ? `<div class="note-text">${e.note}</div>` : ''}
+        <div class="entry-actions">
+          <button data-edittime="${e.id}">Edit time</button>
+          <button data-editscores="${e.id}">Edit scores</button>
+          <button data-remove="${e.id}" class="danger">Delete</button>
         </div>
-        <div class="li-meta" style="color:${b.color}">${e.category} — ${b.label} · last ${fmtDate(last)}</div>
-        ${isMeal ? mealBreakdownHTML(e) : (e.note ? `<div class="li-note">${e.note}</div>` : '')}
-        ${isMeal ? (searchTerm ? mealImprovementTip(e) : '') : (e.userNote ? `<div class="li-usernote">${e.userNote}</div>` : '')}
-        <div class="li-actions">
-          <button data-again="${e.slug}">Log again</button>
-          <button data-editdate="${e.slug}">Edit date</button>
-          <button data-editscore="${e.slug}">Edit score</button>
-          <button data-remove="${e.slug}">Remove</button>
-        </div>
-        <div class="li-date-editor" id="dateEditor-${e.slug}" style="display:none; margin-top:8px;">
-          <input type="date" id="dateInput-${e.slug}" value="${last.slice(0,10)}">
-          <button data-savedate="${e.slug}" style="margin-left:8px;">Save</button>
-        </div>
-        <div class="li-date-editor" id="scoreEditor-${e.slug}" style="display:none; margin-top:8px;">
-          <input type="number" id="scoreInput-${e.slug}" min="1" max="10" step="0.5" value="${e.score}" style="width:80px; display:inline-block;">
-          <button data-savescore="${e.slug}" style="margin-left:8px;">Save</button>
-        </div>
+        <div id="editorFor-${e.id}"></div>
       </div>
     `;
     list.appendChild(li);
   });
 
-  list.querySelectorAll('[data-again]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const slug = btn.dataset.again;
-      DATA[slug].dates = [...(DATA[slug].dates||[]), new Date().toISOString()].sort();
-      await saveData();
-      updateHistoryList();
-    });
-  });
-  list.querySelectorAll('[data-editdate]').forEach(btn=>{
+  list.querySelectorAll('[data-edittime]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      const slug = btn.dataset.editdate;
-      document.getElementById(`dateEditor-${slug}`).style.display = 'block';
+      const id = btn.dataset.edittime;
+      const entry = LOGS.find(l=>l.id===id);
+      const box = document.getElementById(`editorFor-${id}`);
+      const localVal = new Date(entry.timestamp).toISOString().slice(0,16);
+      box.innerHTML = `
+        <input type="datetime-local" id="timeInput-${id}" value="${localVal}" style="margin-top:8px;">
+        <button class="btn btn-text" data-savetime="${id}">Save</button>
+      `;
+      box.querySelector(`[data-savetime]`).addEventListener('click', async ()=>{
+        const v = document.getElementById(`timeInput-${id}`).value;
+        if(!v) return;
+        entry.timestamp = new Date(v).toISOString();
+        await saveData();
+        updateJournalList();
+      });
     });
   });
-  list.querySelectorAll('[data-savedate]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const slug = btn.dataset.savedate;
-      const newDate = document.getElementById(`dateInput-${slug}`).value;
-      if(!newDate) return;
-      const iso = dateInputToISO(newDate);
-      const arr = DATA[slug].dates || [];
-      arr[arr.length-1] = iso; // edits the most recent occurrence
-      DATA[slug].dates = arr.sort();
-      await saveData();
-      updateHistoryList();
-    });
-  });
-  list.querySelectorAll('[data-editscore]').forEach(btn=>{
+  list.querySelectorAll('[data-editscores]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      const slug = btn.dataset.editscore;
-      document.getElementById(`scoreEditor-${slug}`).style.display = 'block';
-    });
-  });
-  list.querySelectorAll('[data-savescore]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const slug = btn.dataset.savescore;
-      const val = parseFloat(document.getElementById(`scoreInput-${slug}`).value);
-      if(isNaN(val) || val < 1 || val > 10) return;
-      DATA[slug].score = val;
-      DATA[slug].source = 'manual-override';
-      await saveData();
-      updateHistoryList();
+      const id = btn.dataset.editscores;
+      const entry = LOGS.find(l=>l.id===id);
+      const box = document.getElementById(`editorFor-${id}`);
+      box.innerHTML = entry.items.map((it,idx)=>`
+        <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+          <span style="flex:1; font-size:13.5px; text-transform:capitalize;">${it.name}</span>
+          <input type="number" min="1" max="10" step="0.5" value="${it.score}" id="scoreEdit-${id}-${idx}" style="width:70px;">
+        </div>
+      `).join('') + `<button class="btn btn-text" data-savescores="${id}" style="margin-top:8px;">Save scores</button>`;
+      box.querySelector(`[data-savescores]`).addEventListener('click', async ()=>{
+        entry.items.forEach((it,idx)=>{
+          const v = parseFloat(document.getElementById(`scoreEdit-${id}-${idx}`).value);
+          if(!isNaN(v)) { it.score = v; FOODCACHE[slugify(it.name)] = { ...(FOODCACHE[slugify(it.name)]||{}), name: it.name, score: v }; }
+        });
+        entry.avgScore = Math.round((entry.items.reduce((s,i)=>s+i.score,0)/entry.items.length)*10)/10;
+        await saveData();
+        updateJournalList();
+      });
     });
   });
   list.querySelectorAll('[data-remove]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
-      const slug = btn.dataset.remove;
-      if(!confirm(`Remove "${DATA[slug].name}" from your log? This can't be undone.`)) return;
-      delete DATA[slug];
+      const id = btn.dataset.remove;
+      const entry = LOGS.find(l=>l.id===id);
+      if(!confirm(`Remove this ${entry.mealType} entry from ${fmtDate(entry.timestamp)}? This can't be undone.`)) return;
+      LOGS = LOGS.filter(l=>l.id!==id);
       await saveData();
-      updateHistoryList();
+      updateJournalList();
     });
   });
 }
-/* ---------- Summary tab (for doctor visits) ---------- */
-let summaryFilter = 'all';
+function csvEscape(val){
+  const s = String(val ?? '');
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+function downloadJournalCSV(){
+  const rows = [['Date','Time','Meal','Item','Score','Band','Meal Avg','Note']];
+  LOGS.forEach(e=>{
+    e.items.forEach(i=>{
+      rows.push([fmtDate(e.timestamp), fmtTime(e.timestamp), e.mealType, i.name, i.score, band(i.score).label, e.avgScore, e.note||'']);
+    });
+  });
+  const csv = rows.map(r=>r.map(csvEscape).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `ledger-journal-${todayInputValue()}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- Summary (doctor view) ---------- */
 function renderSummary(){
   const summaryArea = document.getElementById('summaryArea');
-  const allEntries = Object.values(DATA);
-  if(allEntries.length===0){
+  const items = Object.values(FOODCACHE).sort((a,b)=>a.score-b.score);
+  if(items.length===0){
     summaryArea.innerHTML = `<p class="empty">Nothing logged yet.</p>`;
     return;
   }
-  let entries;
-  if(summaryFilter === 'items'){
-    // Flatten: standalone items as-is, plus every ingredient pulled out of every meal.
-    const map = {};
-    allEntries.forEach(e=>{
-      if(e.source === 'meal' && e.ingredients){
-        e.ingredients.forEach(ing=>{ map[slugify(ing.name)] = { name: ing.name, score: ing.score }; });
-      } else {
-        map[slugify(e.name)] = { name: e.name, score: e.score };
-      }
-    });
-    entries = Object.values(map).sort((a,b)=> a.score-b.score);
-  } else {
-    entries = allEntries
-      .filter(e=> summaryFilter==='meals' ? e.source==='meal' : true)
-      .sort((a,b)=> a.score-b.score);
-  }
-
-  const rows = entries.map(e=>{
+  const rows = items.map(e=>{
     const b = band(e.score);
-    return `
-      <li style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--paper-line);">
-        <div class="badge-sm" style="color:${b.color}">${e.score}</div>
-        <div style="text-transform:capitalize;">${e.name}</div>
-      </li>
-    `;
-  }).join('') || `<li class="empty">Nothing in this view.</li>`;
-
+    return `<li style="display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--border);">${badgeHTML(e.score)}<span style="text-transform:capitalize;">${e.name}</span></li>`;
+  }).join('');
   summaryArea.innerHTML = `
-    <div class="row wrap-buttons" style="margin-bottom:14px;">
-      <button class="ghost" data-sf="all">All</button>
-      <button class="ghost" data-sf="items">Items</button>
-      <button class="ghost" data-sf="meals">Meals</button>
-      <button class="ghost" id="printSummaryBtn">Print this page</button>
+    <div class="btn-row" style="margin-bottom:12px;">
+      <button class="btn btn-secondary" id="printSummaryBtn">Print this page</button>
     </div>
     <ul style="list-style:none; margin:0; padding:0;">${rows}</ul>
   `;
-  summaryArea.querySelectorAll('[data-sf]').forEach(btn=>{
-    if(btn.dataset.sf === summaryFilter){
-      btn.style.color = 'var(--ink)'; btn.style.borderColor = 'var(--teal)';
-    }
-    btn.addEventListener('click', ()=>{ summaryFilter = btn.dataset.sf; renderSummary(); });
-  });
   document.getElementById('printSummaryBtn').addEventListener('click', ()=> window.print());
 }
 
-/* ---------- Init / auth gate ---------- */
+/* ---------- Body log ---------- */
+function renderFieldChips(){
+  const box = document.getElementById('fieldChips');
+  if(BODYFIELDS.length===0){ box.innerHTML = `<p class="hint">No fields yet — add one below.</p>`; return; }
+  box.innerHTML = BODYFIELDS.map(f=>`<span class="field-chip">${f}<button data-removefield="${f}">×</button></span>`).join('');
+  box.querySelectorAll('[data-removefield]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const f = btn.dataset.removefield;
+      if(!confirm(`Remove the "${f}" field? Past entries keep their value, but you won't be able to log new values for it.`)) return;
+      BODYFIELDS = BODYFIELDS.filter(x=>x!==f);
+      await saveBodyData();
+      renderBody();
+    });
+  });
+}
+document.getElementById('addFieldBtn').addEventListener('click', async ()=>{
+  const input = document.getElementById('newFieldInput');
+  const name = input.value.trim();
+  if(!name || BODYFIELDS.includes(name)) return;
+  BODYFIELDS.push(name);
+  await saveBodyData();
+  input.value = '';
+  renderBody();
+});
+function renderBodyForm(){
+  const card = document.getElementById('bodyFormCard');
+  if(BODYFIELDS.length===0){ card.style.display='none'; return; }
+  card.style.display='block';
+  document.getElementById('bodyDateInput').value = todayInputValue();
+  document.getElementById('bodyFieldInputs').innerHTML = BODYFIELDS.map(f=>`
+    <label class="field-label" style="margin-top:8px;">${f}</label>
+    <input type="text" id="bodyval-${slugify(f)}" placeholder="Leave blank to skip">
+  `).join('');
+}
+document.getElementById('saveBodyBtn').addEventListener('click', async ()=>{
+  const date = document.getElementById('bodyDateInput').value;
+  if(!date) return;
+  const values = {};
+  BODYFIELDS.forEach(f=>{
+    const v = document.getElementById(`bodyval-${slugify(f)}`).value.trim();
+    if(v) values[f] = v;
+  });
+  if(Object.keys(values).length===0) return;
+  BODYLOGS.push({ id: 'body-' + Date.now(), date, values });
+  await saveBodyData();
+  renderBody();
+});
+function renderBodyEntries(){
+  const area = document.getElementById('bodyEntriesArea');
+  if(BODYLOGS.length===0){ area.innerHTML = `<p class="empty">No body log entries yet.</p>`; return; }
+  const sorted = [...BODYLOGS].sort((a,b)=> new Date(b.date) - new Date(a.date));
+  const rows = sorted.map(e=>`
+    <li>
+      <div style="flex:1;">
+        <div class="entry-meta" style="font-weight:600; color:var(--text);">${fmtDate(dateInputToISO(e.date))}</div>
+        <div style="margin-top:4px;">${Object.entries(e.values).map(([k,v])=>`<span class="chip">${k}: ${v}</span>`).join('')}</div>
+        <div class="entry-actions">
+          <button data-removebody="${e.id}" class="danger">Delete</button>
+        </div>
+      </div>
+    </li>
+  `).join('');
+  area.innerHTML = `
+    <div class="btn-row" style="margin-bottom:10px;">
+      <button class="btn btn-secondary" id="bodyCsvBtn">Export CSV</button>
+    </div>
+    <ul class="row-list" style="list-style:none; padding:0;">${rows}</ul>
+  `;
+  document.getElementById('bodyCsvBtn').addEventListener('click', downloadBodyCSV);
+  area.querySelectorAll('[data-removebody]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.dataset.removebody;
+      if(!confirm('Delete this body log entry?')) return;
+      BODYLOGS = BODYLOGS.filter(b=>b.id!==id);
+      await saveBodyData();
+      renderBody();
+    });
+  });
+}
+function downloadBodyCSV(){
+  const rows = [['Date', ...BODYFIELDS]];
+  [...BODYLOGS].sort((a,b)=> new Date(a.date)-new Date(b.date)).forEach(e=>{
+    rows.push([e.date, ...BODYFIELDS.map(f=> e.values[f] ?? '')]);
+  });
+  const csv = rows.map(r=>r.map(csvEscape).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `ledger-body-${todayInputValue()}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+async function renderBody(){
+  if(!dataLoaded) await loadData();
+  renderFieldChips();
+  renderBodyForm();
+  renderBodyEntries();
+}
+
+/* ---------- Auth ---------- */
 const authScreen = document.getElementById('authScreen');
-const appContent = document.getElementById('appContent');
+const appShell = document.getElementById('appShell');
 const authError = document.getElementById('authError');
-const signOutRow = document.getElementById('signOutRow');
 const whoAmI = document.getElementById('whoAmI');
 
 function friendlyAuthError(code){
@@ -1107,31 +1023,22 @@ function friendlyAuthError(code){
   };
   return map[code] || ("Something went wrong (" + code + ").");
 }
-
 document.getElementById('signInBtn').addEventListener('click', async ()=>{
   authError.textContent = '';
   const email = document.getElementById('authEmail').value.trim();
   const pass = document.getElementById('authPassword').value;
   if(!email || !pass){ authError.textContent = 'Enter both email and password.'; return; }
-  try{
-    await signInWithEmailAndPassword(auth, email, pass);
-  }catch(e){
-    authError.textContent = friendlyAuthError(e.code);
-  }
+  try{ await signInWithEmailAndPassword(auth, email, pass); }
+  catch(e){ authError.textContent = friendlyAuthError(e.code); }
 });
-
 document.getElementById('createAcctBtn').addEventListener('click', async ()=>{
   authError.textContent = '';
   const email = document.getElementById('authEmail').value.trim();
   const pass = document.getElementById('authPassword').value;
   if(!email || !pass){ authError.textContent = 'Enter both email and password.'; return; }
-  try{
-    await createUserWithEmailAndPassword(auth, email, pass);
-  }catch(e){
-    authError.textContent = friendlyAuthError(e.code);
-  }
+  try{ await createUserWithEmailAndPassword(auth, email, pass); }
+  catch(e){ authError.textContent = friendlyAuthError(e.code); }
 });
-
 document.getElementById('signOutBtn').addEventListener('click', ()=> signOut(auth));
 
 onAuthStateChanged(auth, async (user)=>{
@@ -1139,16 +1046,13 @@ onAuthStateChanged(auth, async (user)=>{
     currentUid = user.uid;
     whoAmI.textContent = user.email || user.uid;
     authScreen.style.display = 'none';
-    signOutRow.style.display = 'block';
-    appContent.style.display = 'block';
+    appShell.style.display = 'block';
     await loadData();
-    document.getElementById('historyArea').innerHTML = '<p class="empty">Switch to this tab to see your log.</p>';
+    switchTab('Log');
   } else {
-    currentUid = null;
-    dataLoaded = false;
+    currentUid = null; dataLoaded = false;
     authScreen.style.display = 'block';
-    signOutRow.style.display = 'none';
-    appContent.style.display = 'none';
+    appShell.style.display = 'none';
   }
 });
 </script>

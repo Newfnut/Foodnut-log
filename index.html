@@ -141,13 +141,12 @@
 
   /* Tab bar */
   nav.tabbar{
-    position: fixed; bottom:0; left:0; right:0;
-    background: rgba(255,255,255,0.94);
-    backdrop-filter: blur(10px);
+    position: fixed; bottom:0; left:0; width:100%;
+    background: #FFFFFF;
     border-top: 1px solid var(--border);
     display:flex;
-    padding-bottom: env(safe-area-inset-bottom);
-    z-index: 10;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 999;
   }
   nav.tabbar button{
     flex:1; background:none; border:none; padding: 8px 4px 6px;
@@ -598,6 +597,20 @@ let mealCheck = null;
 function lookupIngredient(name){
   const slug = slugify(name);
   if(FOODCACHE[slug]) return { score: FOODCACHE[slug].score, category: FOODCACHE[slug].category, note: FOODCACHE[slug].note, resolved:true };
+
+  // No exact match — check learned foods for a partial match either direction
+  // ("sausage" should find "Italian Sausage" and vice versa). Prefer the
+  // longest/most specific cached name so generic words don't win over specifics.
+  const t = name.toLowerCase().trim();
+  const cached = Object.values(FOODCACHE)
+    .filter(f => t.length >= 3)
+    .filter(f => {
+      const fn = f.name.toLowerCase();
+      return fn.includes(t) || t.includes(fn);
+    })
+    .sort((a,b)=> b.name.length - a.name.length)[0];
+  if(cached) return { score: cached.score, category: cached.category, note: cached.note, resolved:true };
+
   const auto = lookupAuto(name);
   if(auto) return { score: auto.s, category: auto.c, note: auto.n, resolved:true };
   return { resolved:false };
@@ -804,6 +817,7 @@ function updateJournalList(){
         <div style="margin-top:6px;">${chips}</div>
         ${e.note ? `<div class="note-text">${e.note}</div>` : ''}
         <div class="entry-actions">
+          <button data-duplicate="${e.id}">Duplicate</button>
           <button data-edittime="${e.id}">Edit time</button>
           <button data-editscores="${e.id}">Edit scores</button>
           <button data-remove="${e.id}" class="danger">Delete</button>
@@ -814,6 +828,19 @@ function updateJournalList(){
     list.appendChild(li);
   });
 
+  list.querySelectorAll('[data-duplicate]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.duplicate;
+      const entry = LOGS.find(l=>l.id===id);
+      selectedMealType = entry.mealType;
+      document.querySelectorAll('#mealTypeSegment button').forEach(b=>{
+        b.classList.toggle('active', b.dataset.meal === entry.mealType);
+      });
+      ingredientsInput.value = entry.items.map(i=>i.name).join(', ');
+      switchTab('Log');
+      ingredientsInput.focus();
+    });
+  });
   list.querySelectorAll('[data-edittime]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const id = btn.dataset.edittime;

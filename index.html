@@ -228,15 +228,16 @@
     <!-- BODY PANEL -->
     <div id="panelBody" class="panel">
       <div class="card">
-        <label class="field-label">Types (pick which apply to this entry)</label>
+        <label class="field-label">Types (tap one to start a new entry)</label>
         <div id="fieldPicker"></div>
         <div class="btn-row" style="margin-top:10px;">
           <input type="text" id="newFieldInput" placeholder="Add a new type, e.g. Weight" style="flex:2;">
           <button class="btn btn-secondary" id="addFieldBtn" style="flex:1;">Add</button>
         </div>
+        <button class="btn-text" id="openBlankFormBtn" style="margin-top:8px; padding:0;">+ New entry (no type)</button>
       </div>
 
-      <div class="card" id="bodyFormCard">
+      <div class="card" id="bodyFormCard" style="display:none;">
         <p class="hint" id="editingBanner" style="display:none; color:var(--accent); font-weight:600;">Editing an existing entry</p>
         <label class="field-label">Date</label>
         <input type="date" id="bodyDateInput">
@@ -252,7 +253,7 @@
         <div id="bodyFieldInputs" style="margin-top:12px;"></div>
         <div class="btn-row">
           <button class="btn btn-primary" id="saveBodyBtn">Save entry</button>
-          <button class="btn btn-secondary" id="cancelEditBodyBtn">Cancel edit</button>
+          <button class="btn btn-secondary" id="cancelEditBodyBtn">Cancel</button>
         </div>
       </div>
 
@@ -959,6 +960,7 @@ function renderFieldPicker(){
       if(cb.checked){ if(!selectedBodyFields.includes(f)) selectedBodyFields.push(f); }
       else { selectedBodyFields = selectedBodyFields.filter(x=>x!==f); }
       renderBodyFieldInputs();
+      openBodyForm();
     });
   });
   box.querySelectorAll('[data-removefield]').forEach(btn=>{
@@ -993,8 +995,18 @@ document.getElementById('addFieldBtn').addEventListener('click', async ()=>{
   input.value = '';
   renderFieldPicker();
   renderBodyFieldInputs();
+  openBodyForm();
 });
-document.getElementById('cancelEditBodyBtn').addEventListener('click', ()=> resetBodyForm());
+document.getElementById('cancelEditBodyBtn').addEventListener('click', ()=>{ resetBodyForm(); closeBodyForm(); });
+document.getElementById('openBlankFormBtn').addEventListener('click', ()=> openBodyForm());
+
+function openBodyForm(){
+  document.getElementById('bodyFormCard').style.display = 'block';
+  document.getElementById('bodyFormCard').scrollIntoView({behavior:'smooth', block:'center'});
+}
+function closeBodyForm(){
+  document.getElementById('bodyFormCard').style.display = 'none';
+}
 
 function populateTypeOptions(){
   const types = [...new Set(BODYLOGS.map(e=>e.type).filter(Boolean))];
@@ -1027,7 +1039,7 @@ function loadBodyEntryIntoForm(id){
     inp.value = e.values[inp.dataset.fieldvalue] || '';
   });
   switchTab('Body');
-  document.getElementById('bodyFormCard').scrollIntoView({behavior:'smooth'});
+  openBodyForm();
 }
 document.getElementById('saveBodyBtn').addEventListener('click', async ()=>{
   const date = document.getElementById('bodyDateInput').value;
@@ -1050,6 +1062,7 @@ document.getElementById('saveBodyBtn').addEventListener('click', async ()=>{
   }
   await saveBodyData();
   resetBodyForm();
+  closeBodyForm();
   renderBodyEntries();
   populateTypeOptions();
 });
@@ -1111,7 +1124,10 @@ function downloadBodyCSV(){
 }
 async function renderBody(){
   if(!dataLoaded) await loadData();
-  if(!editingBodyId){ document.getElementById('bodyDateInput').value = todayInputValue(); }
+  if(!editingBodyId){
+    document.getElementById('bodyDateInput').value = todayInputValue();
+    closeBodyForm();
+  }
   renderFieldPicker();
   renderBodyFieldInputs();
   populateTypeOptions();

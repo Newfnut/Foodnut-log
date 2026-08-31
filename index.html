@@ -65,6 +65,13 @@
     padding: 11px 12px;
   }
   textarea{ min-height: 70px; resize: vertical; }
+  .suggestion-row{
+    display:block; width:100%; text-align:left; font-family:inherit; font-size:14.5px;
+    background:#fff; border:none; border-bottom:1px solid var(--border);
+    padding:10px 12px; cursor:pointer;
+  }
+  .suggestion-row:last-child{ border-bottom:none; }
+  .suggestion-row:active{ background:var(--accent-soft); }
   input:focus, textarea:focus{ outline: none; border-color: var(--accent); background: #fff; }
 
   .btn{
@@ -208,6 +215,7 @@
         </div>
         <label class="field-label" style="margin-top:14px;">What did you eat?</label>
         <textarea id="ingredientsInput" placeholder="e.g. eggs, avocado mayo, cucumber, sourdough rye"></textarea>
+        <div id="ingredientSuggestions" style="display:none; margin-top:6px; border:1px solid var(--border); border-radius:10px; overflow:hidden;"></div>
         <div class="btn-row">
           <button class="btn btn-primary" id="checkMealBtn">Check it</button>
         </div>
@@ -242,7 +250,7 @@
         <label class="field-label">Date</label>
         <input type="date" id="bodyDateInput">
         <div style="display:flex; gap:10px; margin-top:10px;">
-          <input type="time" id="bodyTimeInput" style="flex:1;">
+          <input type="text" id="bodyTimeInput" placeholder="e.g. 20 sec, 15 min" style="flex:1;">
           <span class="hint" style="align-self:center;">time optional</span>
         </div>
         <label class="field-label" style="margin-top:12px;">Type</label>
@@ -607,6 +615,39 @@ const ingredientsInput = document.getElementById('ingredientsInput');
 const logResultArea = document.getElementById('logResultArea');
 let mealCheck = null;
 
+/* ---------- Ingredient autocomplete, so re-typed foods stay consistent ---------- */
+function currentTypedSegment(){
+  const parts = ingredientsInput.value.split(',');
+  return parts[parts.length-1].trim();
+}
+function updateIngredientSuggestions(){
+  const box = document.getElementById('ingredientSuggestions');
+  const seg = currentTypedSegment().toLowerCase();
+  if(seg.length < 2){ box.style.display='none'; box.innerHTML=''; return; }
+  const matches = Object.values(FOODCACHE)
+    .filter(f => f.name.toLowerCase() !== seg && f.name.toLowerCase().includes(seg))
+    .sort((a,b)=> a.name.length - b.name.length)
+    .slice(0,6);
+  if(matches.length === 0){ box.style.display='none'; box.innerHTML=''; return; }
+  box.style.display = 'block';
+  box.innerHTML = matches.map(m=>
+    `<button type="button" class="suggestion-row" data-suggest="${m.name.replace(/"/g,'&quot;')}">${m.name}</button>`
+  ).join('');
+  box.querySelectorAll('[data-suggest]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const parts = ingredientsInput.value.split(',');
+      parts[parts.length-1] = (parts.length>1 ? ' ' : '') + btn.dataset.suggest;
+      ingredientsInput.value = parts.join(',');
+      box.style.display='none'; box.innerHTML='';
+      ingredientsInput.focus();
+    });
+  });
+}
+ingredientsInput.addEventListener('input', updateIngredientSuggestions);
+ingredientsInput.addEventListener('blur', ()=>{
+  setTimeout(()=>{ document.getElementById('ingredientSuggestions').style.display='none'; }, 150);
+});
+
 function lookupIngredient(name){
   const slug = slugify(name);
   if(FOODCACHE[slug]) return { score: FOODCACHE[slug].score, category: FOODCACHE[slug].category, note: FOODCACHE[slug].note, resolved:true };
@@ -827,6 +868,7 @@ function updateJournalList(){
         <div style="margin-top:6px;">${chips}</div>
         ${e.note ? `<div class="note-text">${e.note}</div>` : ''}
         <div class="entry-actions">
+          <button data-duplicate="${e.id}">Duplicate</button>
           <button data-edittime="${e.id}">Edit time</button>
           <button data-editscores="${e.id}">Edit scores</button>
           <button data-remove="${e.id}" class="danger">Delete</button>
@@ -837,6 +879,19 @@ function updateJournalList(){
     list.appendChild(li);
   });
 
+  list.querySelectorAll('[data-duplicate]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.duplicate;
+      const entry = LOGS.find(l=>l.id===id);
+      selectedMealType = entry.mealType;
+      document.querySelectorAll('#mealTypeSegment button').forEach(b=>{
+        b.classList.toggle('active', b.dataset.meal === entry.mealType);
+      });
+      ingredientsInput.value = entry.items.map(i=>i.name).join(', ');
+      switchTab('Log');
+      ingredientsInput.focus();
+    });
+  });
   list.querySelectorAll('[data-edittime]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const id = btn.dataset.edittime;

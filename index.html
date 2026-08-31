@@ -228,20 +228,31 @@
     <!-- BODY PANEL -->
     <div id="panelBody" class="panel">
       <div class="card">
-        <label class="field-label">Tracked fields</label>
-        <div id="fieldChips"></div>
+        <label class="field-label">Types (pick which apply to this entry)</label>
+        <div id="fieldPicker"></div>
         <div class="btn-row" style="margin-top:10px;">
-          <input type="text" id="newFieldInput" placeholder="e.g. Weight, Left Foot" style="flex:2;">
+          <input type="text" id="newFieldInput" placeholder="Add a new type, e.g. Weight" style="flex:2;">
           <button class="btn btn-secondary" id="addFieldBtn" style="flex:1;">Add</button>
         </div>
       </div>
 
-      <div class="card" id="bodyFormCard" style="display:none;">
+      <div class="card" id="bodyFormCard">
+        <p class="hint" id="editingBanner" style="display:none; color:var(--accent); font-weight:600;">Editing an existing entry</p>
         <label class="field-label">Date</label>
         <input type="date" id="bodyDateInput">
+        <div style="display:flex; gap:10px; margin-top:10px;">
+          <input type="time" id="bodyTimeInput" style="flex:1;">
+          <span class="hint" style="align-self:center;">time optional</span>
+        </div>
+        <label class="field-label" style="margin-top:12px;">Type</label>
+        <input type="text" id="bodyTypeInput" list="typeOptions" placeholder="e.g. Cardio, Weight — optional">
+        <datalist id="typeOptions"></datalist>
+        <label class="field-label" style="margin-top:12px;">Workout details</label>
+        <textarea id="bodyWorkoutInput" placeholder="e.g. Rowing machine, 20 minutes — optional"></textarea>
         <div id="bodyFieldInputs" style="margin-top:12px;"></div>
         <div class="btn-row">
           <button class="btn btn-primary" id="saveBodyBtn">Save entry</button>
+          <button class="btn btn-secondary" id="cancelEditBodyBtn">Cancel edit</button>
         </div>
       </div>
 
@@ -598,9 +609,6 @@ function lookupIngredient(name){
   const slug = slugify(name);
   if(FOODCACHE[slug]) return { score: FOODCACHE[slug].score, category: FOODCACHE[slug].category, note: FOODCACHE[slug].note, resolved:true };
 
-  // No exact match — check learned foods for a partial match either direction
-  // ("sausage" should find "Italian Sausage" and vice versa). Prefer the
-  // longest/most specific cached name so generic words don't win over specifics.
   const t = name.toLowerCase().trim();
   const cached = Object.values(FOODCACHE)
     .filter(f => t.length >= 3)
@@ -620,7 +628,7 @@ document.getElementById('checkMealBtn').addEventListener('click', async ()=>{
   const raw = ingredientsInput.value.trim();
   if(!raw) return;
   if(!dataLoaded) await loadData();
-  const names = raw.split(',').map(s=>s.trim()).filter(Boolean);
+  const names = raw.split(',').map(s=>capitalizeFirst(s.trim())).filter(Boolean);
   mealCheck = { mealType: selectedMealType, results: {}, queue: [] };
   names.forEach(name=>{
     const r = lookupIngredient(name);
@@ -817,7 +825,6 @@ function updateJournalList(){
         <div style="margin-top:6px;">${chips}</div>
         ${e.note ? `<div class="note-text">${e.note}</div>` : ''}
         <div class="entry-actions">
-          <button data-duplicate="${e.id}">Duplicate</button>
           <button data-edittime="${e.id}">Edit time</button>
           <button data-editscores="${e.id}">Edit scores</button>
           <button data-remove="${e.id}" class="danger">Delete</button>
@@ -828,19 +835,6 @@ function updateJournalList(){
     list.appendChild(li);
   });
 
-  list.querySelectorAll('[data-duplicate]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const id = btn.dataset.duplicate;
-      const entry = LOGS.find(l=>l.id===id);
-      selectedMealType = entry.mealType;
-      document.querySelectorAll('#mealTypeSegment button').forEach(b=>{
-        b.classList.toggle('active', b.dataset.meal === entry.mealType);
-      });
-      ingredientsInput.value = entry.items.map(i=>i.name).join(', ');
-      switchTab('Log');
-      ingredientsInput.focus();
-    });
-  });
   list.querySelectorAll('[data-edittime]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const id = btn.dataset.edittime;
@@ -867,14 +861,17 @@ function updateJournalList(){
       const box = document.getElementById(`editorFor-${id}`);
       box.innerHTML = entry.items.map((it,idx)=>`
         <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
-          <span style="flex:1; font-size:13.5px; text-transform:capitalize;">${it.name}</span>
+          <input type="text" value="${it.name}" id="nameEdit-${id}-${idx}" style="flex:1;">
           <input type="number" min="1" max="10" step="0.5" value="${it.score}" id="scoreEdit-${id}-${idx}" style="width:70px;">
         </div>
-      `).join('') + `<button class="btn btn-text" data-savescores="${id}" style="margin-top:8px;">Save scores</button>`;
+      `).join('') + `<button class="btn btn-text" data-savescores="${id}" style="margin-top:8px;">Save</button>`;
       box.querySelector(`[data-savescores]`).addEventListener('click', async ()=>{
         entry.items.forEach((it,idx)=>{
+          const newName = capitalizeFirst(document.getElementById(`nameEdit-${id}-${idx}`).value.trim());
           const v = parseFloat(document.getElementById(`scoreEdit-${id}-${idx}`).value);
-          if(!isNaN(v)) { it.score = v; FOODCACHE[slugify(it.name)] = { ...(FOODCACHE[slugify(it.name)]||{}), name: it.name, score: v }; }
+          if(newName) it.name = newName;
+          if(!isNaN(v)) it.score = v;
+          FOODCACHE[slugify(it.name)] = { ...(FOODCACHE[slugify(it.name)]||{}), name: it.name, score: it.score };
         });
         entry.avgScore = Math.round((entry.items.reduce((s,i)=>s+i.score,0)/entry.items.length)*10)/10;
         await saveData();
@@ -935,67 +932,149 @@ function renderSummary(){
 }
 
 /* ---------- Body log ---------- */
-function renderFieldChips(){
-  const box = document.getElementById('fieldChips');
+function capitalizeFirst(str){
+  if(!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+let selectedBodyFields = [];
+let editingBodyId = null;
+
+function renderFieldPicker(){
+  const box = document.getElementById('fieldPicker');
   if(BODYFIELDS.length===0){ box.innerHTML = `<p class="hint">No fields yet — add one below.</p>`; return; }
-  box.innerHTML = BODYFIELDS.map(f=>`<span class="field-chip">${f}<button data-removefield="${f}">×</button></span>`).join('');
+  box.innerHTML = BODYFIELDS.map(f=>{
+    const checked = selectedBodyFields.includes(f) ? 'checked' : '';
+    return `
+      <label style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:14.5px;">
+        <input type="checkbox" data-fieldcheck="${f}" ${checked}>
+        ${f}
+        <button type="button" data-removefield="${f}" style="margin-left:auto; background:none; border:none; color:var(--text-secondary); font-size:16px; cursor:pointer;">×</button>
+      </label>
+    `;
+  }).join('');
+  box.querySelectorAll('[data-fieldcheck]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const f = cb.dataset.fieldcheck;
+      if(cb.checked){ if(!selectedBodyFields.includes(f)) selectedBodyFields.push(f); }
+      else { selectedBodyFields = selectedBodyFields.filter(x=>x!==f); }
+      renderBodyFieldInputs();
+    });
+  });
   box.querySelectorAll('[data-removefield]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
+    btn.addEventListener('click', async (ev)=>{
+      ev.preventDefault();
       const f = btn.dataset.removefield;
-      if(!confirm(`Remove the "${f}" field? Past entries keep their value, but you won't be able to log new values for it.`)) return;
+      if(!confirm(`Remove the "${f}" field? Past entries keep their value, but you won't be able to pick it for new ones.`)) return;
       BODYFIELDS = BODYFIELDS.filter(x=>x!==f);
+      selectedBodyFields = selectedBodyFields.filter(x=>x!==f);
       await saveBodyData();
-      renderBody();
+      renderFieldPicker();
+      renderBodyFieldInputs();
     });
   });
 }
+function renderBodyFieldInputs(){
+  const box = document.getElementById('bodyFieldInputs');
+  const existingValues = {};
+  box.querySelectorAll('input[data-fieldvalue]').forEach(inp=>{ existingValues[inp.dataset.fieldvalue] = inp.value; });
+  box.innerHTML = selectedBodyFields.map(f=>`
+    <label class="field-label" style="margin-top:8px;">${f}</label>
+    <input type="text" data-fieldvalue="${f}" value="${existingValues[f] || ''}" placeholder="Value">
+  `).join('');
+}
 document.getElementById('addFieldBtn').addEventListener('click', async ()=>{
   const input = document.getElementById('newFieldInput');
-  const name = input.value.trim();
+  const name = capitalizeFirst(input.value.trim());
   if(!name || BODYFIELDS.includes(name)) return;
   BODYFIELDS.push(name);
+  selectedBodyFields.push(name);
   await saveBodyData();
   input.value = '';
-  renderBody();
+  renderFieldPicker();
+  renderBodyFieldInputs();
 });
-function renderBodyForm(){
-  const card = document.getElementById('bodyFormCard');
-  if(BODYFIELDS.length===0){ card.style.display='none'; return; }
-  card.style.display='block';
+document.getElementById('cancelEditBodyBtn').addEventListener('click', ()=> resetBodyForm());
+
+function populateTypeOptions(){
+  const types = [...new Set(BODYLOGS.map(e=>e.type).filter(Boolean))];
+  document.getElementById('typeOptions').innerHTML = types.map(t=>`<option value="${t}">`).join('');
+}
+function resetBodyForm(){
+  editingBodyId = null;
+  selectedBodyFields = [];
+  document.getElementById('editingBanner').style.display = 'none';
   document.getElementById('bodyDateInput').value = todayInputValue();
-  document.getElementById('bodyFieldInputs').innerHTML = BODYFIELDS.map(f=>`
-    <label class="field-label" style="margin-top:8px;">${f}</label>
-    <input type="text" id="bodyval-${slugify(f)}" placeholder="Leave blank to skip">
-  `).join('');
+  document.getElementById('bodyTimeInput').value = '';
+  document.getElementById('bodyTypeInput').value = '';
+  document.getElementById('bodyWorkoutInput').value = '';
+  renderFieldPicker();
+  renderBodyFieldInputs();
+}
+function loadBodyEntryIntoForm(id){
+  const e = BODYLOGS.find(x=>x.id===id);
+  if(!e) return;
+  editingBodyId = id;
+  document.getElementById('editingBanner').style.display = 'block';
+  document.getElementById('bodyDateInput').value = e.date;
+  document.getElementById('bodyTimeInput').value = e.time || '';
+  document.getElementById('bodyTypeInput').value = e.type || '';
+  document.getElementById('bodyWorkoutInput').value = e.workout || '';
+  selectedBodyFields = Object.keys(e.values || {});
+  renderFieldPicker();
+  renderBodyFieldInputs();
+  document.querySelectorAll('#panelBody input[data-fieldvalue]').forEach(inp=>{
+    inp.value = e.values[inp.dataset.fieldvalue] || '';
+  });
+  switchTab('Body');
+  document.getElementById('bodyFormCard').scrollIntoView({behavior:'smooth'});
 }
 document.getElementById('saveBodyBtn').addEventListener('click', async ()=>{
   const date = document.getElementById('bodyDateInput').value;
   if(!date) return;
+  const time = document.getElementById('bodyTimeInput').value || '';
+  const type = capitalizeFirst(document.getElementById('bodyTypeInput').value.trim());
+  const workout = capitalizeFirst(document.getElementById('bodyWorkoutInput').value.trim());
   const values = {};
-  BODYFIELDS.forEach(f=>{
-    const v = document.getElementById(`bodyval-${slugify(f)}`).value.trim();
-    if(v) values[f] = v;
+  document.querySelectorAll('#panelBody input[data-fieldvalue]').forEach(inp=>{
+    const v = inp.value.trim();
+    if(v) values[inp.dataset.fieldvalue] = v;
   });
-  if(Object.keys(values).length===0) return;
-  BODYLOGS.push({ id: 'body-' + Date.now(), date, values });
+  if(Object.keys(values).length===0 && !type && !workout) return;
+
+  if(editingBodyId){
+    const e = BODYLOGS.find(x=>x.id===editingBodyId);
+    Object.assign(e, { date, time, type, workout, values });
+  } else {
+    BODYLOGS.push({ id: 'body-' + Date.now(), date, time, type, workout, values });
+  }
   await saveBodyData();
-  renderBody();
+  resetBodyForm();
+  renderBodyEntries();
+  populateTypeOptions();
 });
 function renderBodyEntries(){
   const area = document.getElementById('bodyEntriesArea');
   if(BODYLOGS.length===0){ area.innerHTML = `<p class="empty">No body log entries yet.</p>`; return; }
-  const sorted = [...BODYLOGS].sort((a,b)=> new Date(b.date) - new Date(a.date));
-  const rows = sorted.map(e=>`
-    <li>
-      <div style="flex:1;">
-        <div class="entry-meta" style="font-weight:600; color:var(--text);">${fmtDate(dateInputToISO(e.date))}</div>
-        <div style="margin-top:4px;">${Object.entries(e.values).map(([k,v])=>`<span class="chip">${k}: ${v}</span>`).join('')}</div>
-        <div class="entry-actions">
-          <button data-removebody="${e.id}" class="danger">Delete</button>
+  const sorted = [...BODYLOGS].sort((a,b)=> new Date(b.date+'T'+(b.time||'00:00')) - new Date(a.date+'T'+(a.time||'00:00')));
+  const rows = sorted.map(e=>{
+    const metaBits = [fmtDate(dateInputToISO(e.date))];
+    if(e.time) metaBits.push(e.time);
+    if(e.type) metaBits.push(e.type);
+    const fieldChips = Object.entries(e.values||{}).map(([k,v])=>`<span class="chip">${k}: ${v}</span>`).join('');
+    return `
+      <li>
+        <div style="flex:1;">
+          <div class="entry-meta" style="font-weight:600; color:var(--text);">${metaBits.join(' · ')}</div>
+          ${e.workout ? `<div class="note-text">${e.workout}</div>` : ''}
+          ${fieldChips ? `<div style="margin-top:4px;">${fieldChips}</div>` : ''}
+          <div class="entry-actions">
+            <button data-editbody="${e.id}">Edit</button>
+            <button data-removebody="${e.id}" class="danger">Delete</button>
+          </div>
         </div>
-      </div>
-    </li>
-  `).join('');
+      </li>
+    `;
+  }).join('');
   area.innerHTML = `
     <div class="btn-row" style="margin-bottom:10px;">
       <button class="btn btn-secondary" id="bodyCsvBtn">Export CSV</button>
@@ -1003,20 +1082,23 @@ function renderBodyEntries(){
     <ul class="row-list" style="list-style:none; padding:0;">${rows}</ul>
   `;
   document.getElementById('bodyCsvBtn').addEventListener('click', downloadBodyCSV);
+  area.querySelectorAll('[data-editbody]').forEach(btn=>{
+    btn.addEventListener('click', ()=> loadBodyEntryIntoForm(btn.dataset.editbody));
+  });
   area.querySelectorAll('[data-removebody]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const id = btn.dataset.removebody;
       if(!confirm('Delete this body log entry?')) return;
       BODYLOGS = BODYLOGS.filter(b=>b.id!==id);
       await saveBodyData();
-      renderBody();
+      renderBodyEntries();
     });
   });
 }
 function downloadBodyCSV(){
-  const rows = [['Date', ...BODYFIELDS]];
+  const rows = [['Date','Time','Type','Workout', ...BODYFIELDS]];
   [...BODYLOGS].sort((a,b)=> new Date(a.date)-new Date(b.date)).forEach(e=>{
-    rows.push([e.date, ...BODYFIELDS.map(f=> e.values[f] ?? '')]);
+    rows.push([e.date, e.time||'', e.type||'', e.workout||'', ...BODYFIELDS.map(f=> (e.values||{})[f] ?? '')]);
   });
   const csv = rows.map(r=>r.map(csvEscape).join(',')).join('\n');
   const blob = new Blob([csv], {type:'text/csv'});
@@ -1028,8 +1110,10 @@ function downloadBodyCSV(){
 }
 async function renderBody(){
   if(!dataLoaded) await loadData();
-  renderFieldChips();
-  renderBodyForm();
+  if(!editingBodyId){ document.getElementById('bodyDateInput').value = todayInputValue(); }
+  renderFieldPicker();
+  renderBodyFieldInputs();
+  populateTypeOptions();
   renderBodyEntries();
 }
 

@@ -249,15 +249,20 @@
         <p class="hint" id="editingBanner" style="display:none; color:var(--accent); font-weight:600;">Editing an existing entry</p>
         <label class="field-label">Date</label>
         <input type="date" id="bodyDateInput">
-        <div style="display:flex; gap:10px; margin-top:10px;">
-          <input type="text" id="bodyTimeInput" placeholder="e.g. 20 sec, 15 min" style="flex:1;">
-          <span class="hint" style="align-self:center;">time optional</span>
-        </div>
         <label class="field-label" style="margin-top:12px;">Type</label>
-        <input type="text" id="bodyTypeInput" list="typeOptions" placeholder="e.g. Cardio, Weight — optional">
+        <input type="text" id="bodyTypeInput" list="typeOptions" placeholder="e.g. Cardio, Balance, Scale — optional">
         <datalist id="typeOptions"></datalist>
-        <label class="field-label" style="margin-top:12px;">Workout details</label>
-        <textarea id="bodyWorkoutInput" placeholder="e.g. Rowing machine, 20 minutes — optional"></textarea>
+        <label class="field-label" style="margin-top:12px;">Detail</label>
+        <input type="text" id="bodyDetailInput" placeholder="e.g. Rowing Machine, Left Foot — optional">
+        <label class="field-label" style="margin-top:12px;">Notes</label>
+        <input type="text" id="bodyNotesInput" placeholder="Optional">
+        <label class="field-label" style="margin-top:12px;">Time</label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="number" id="bodyMinInput" min="0" placeholder="Min" style="flex:1;">
+          <span class="hint">:</span>
+          <input type="number" id="bodySecInput" min="0" max="59" placeholder="Sec" style="flex:1;">
+          <span class="hint">optional</span>
+        </div>
         <div id="bodyFieldInputs" style="margin-top:12px;"></div>
         <div class="btn-row">
           <button class="btn btn-primary" id="saveBodyBtn">Save entry</button>
@@ -336,6 +341,20 @@ const DICTIONARY = [
   {k:"butter", s:6, c:"Fat", n:"Neutral on blood sugar itself; watch total saturated fat."},
   {k:"peanut butter", s:7, c:"Fat / Protein", n:"Good protein and fat — check for added sugar in some brands."},
   {k:"almonds", s:8, c:"Fat / Protein", n:"Fiber, fat, and protein with minimal carb impact."},
+  {k:"unsalted cashews", s:7, c:"Fat / Protein", n:"Slightly more carb-dense than almonds or walnuts, still a solid fat/protein source."},
+  {k:"cashews", s:6, c:"Fat / Protein", n:"More carb-dense than most nuts; salted/roasted versions add sodium and oil."},
+  {k:"pistachios", s:7, c:"Fat / Protein", n:"High fiber for a nut, moderate carbs."},
+  {k:"pecans", s:8, c:"Fat / Protein", n:"Very low carb, high in healthy fat."},
+  {k:"macadamia", s:8, c:"Fat / Protein", n:"Very low carb, highest fat content of common nuts."},
+  {k:"pumpkin seeds", s:8, c:"Fat / Protein", n:"Low carb, high in protein and magnesium."},
+  {k:"sunflower seeds", s:7, c:"Fat / Protein", n:"Good fat and protein, slightly more carb-dense than pumpkin seeds."},
+  {k:"unsalted cashews", s:7, c:"Fat / Protein", n:"Slightly more carb-dense than almonds or walnuts, still a solid fat/protein source."},
+  {k:"cashews", s:6, c:"Fat / Protein", n:"More carb-dense than most nuts; salted/roasted versions add sodium and oil."},
+  {k:"pistachios", s:7, c:"Fat / Protein", n:"High fiber for a nut, moderate carbs."},
+  {k:"pecans", s:8, c:"Fat / Protein", n:"Very low carb, high in healthy fat."},
+  {k:"macadamia", s:8, c:"Fat / Protein", n:"Very low carb, highest fat content of common nuts."},
+  {k:"pumpkin seeds", s:8, c:"Fat / Protein", n:"Low carb, high in protein and magnesium."},
+  {k:"sunflower seeds", s:7, c:"Fat / Protein", n:"Good fat and protein, slightly more carb-dense than pumpkin seeds."},
   {k:"walnuts", s:8, c:"Fat / Protein", n:"Fiber, fat, and protein with minimal carb impact."},
   {k:"nuts", s:8, c:"Fat / Protein", n:"Fiber, fat, and protein with minimal carb impact."},
   {k:"chia", s:9, c:"Fat / Fiber", n:"Very high fiber, slows digestion of anything eaten with it."},
@@ -993,6 +1012,26 @@ function capitalizeFirst(str){
   if(!str) return str;
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
+function titleCase(str){
+  if(!str) return str;
+  return str.split(' ').map(w => w ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(' ');
+}
+function formatDurationDisplay(totalSeconds){
+  if(totalSeconds===null || totalSeconds===undefined || isNaN(totalSeconds)) return '';
+  const h = Math.floor(totalSeconds/3600);
+  const m = Math.floor((totalSeconds%3600)/60);
+  const s = Math.floor(totalSeconds%60);
+  const pad = n => String(n).padStart(2,'0');
+  return h>0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+function formatDurationCSV(totalSeconds){
+  if(totalSeconds===null || totalSeconds===undefined || isNaN(totalSeconds)) return '';
+  const h = Math.floor(totalSeconds/3600);
+  const m = Math.floor((totalSeconds%3600)/60);
+  const s = Math.floor(totalSeconds%60);
+  const pad = n => String(n).padStart(2,'0');
+  return `'${h}:${pad(m)}:${pad(s)}`; // leading apostrophe stops Excel auto-converting this to a clock time
+}
 let selectedBodyFields = [];
 let editingBodyId = null;
 
@@ -1072,9 +1111,11 @@ function resetBodyForm(){
   selectedBodyFields = [];
   document.getElementById('editingBanner').style.display = 'none';
   document.getElementById('bodyDateInput').value = todayInputValue();
-  document.getElementById('bodyTimeInput').value = '';
   document.getElementById('bodyTypeInput').value = '';
-  document.getElementById('bodyWorkoutInput').value = '';
+  document.getElementById('bodyDetailInput').value = '';
+  document.getElementById('bodyNotesInput').value = '';
+  document.getElementById('bodyMinInput').value = '';
+  document.getElementById('bodySecInput').value = '';
   renderFieldPicker();
   renderBodyFieldInputs();
 }
@@ -1084,9 +1125,16 @@ function loadBodyEntryIntoForm(id){
   editingBodyId = id;
   document.getElementById('editingBanner').style.display = 'block';
   document.getElementById('bodyDateInput').value = e.date;
-  document.getElementById('bodyTimeInput').value = e.time || '';
   document.getElementById('bodyTypeInput').value = e.type || '';
-  document.getElementById('bodyWorkoutInput').value = e.workout || '';
+  document.getElementById('bodyDetailInput').value = e.detail || e.workout || '';
+  document.getElementById('bodyNotesInput').value = e.notes || '';
+  if(e.timeSeconds !== undefined && e.timeSeconds !== null){
+    document.getElementById('bodyMinInput').value = Math.floor(e.timeSeconds/60);
+    document.getElementById('bodySecInput').value = e.timeSeconds%60;
+  } else {
+    document.getElementById('bodyMinInput').value = '';
+    document.getElementById('bodySecInput').value = '';
+  }
   selectedBodyFields = Object.keys(e.values || {});
   renderFieldPicker();
   renderBodyFieldInputs();
@@ -1099,21 +1147,25 @@ function loadBodyEntryIntoForm(id){
 document.getElementById('saveBodyBtn').addEventListener('click', async ()=>{
   const date = document.getElementById('bodyDateInput').value;
   if(!date) return;
-  const time = document.getElementById('bodyTimeInput').value || '';
-  const type = capitalizeFirst(document.getElementById('bodyTypeInput').value.trim());
-  const workout = capitalizeFirst(document.getElementById('bodyWorkoutInput').value.trim());
+  const type = titleCase(document.getElementById('bodyTypeInput').value.trim());
+  const detail = titleCase(document.getElementById('bodyDetailInput').value.trim());
+  const notes = titleCase(document.getElementById('bodyNotesInput').value.trim());
+  const min = parseInt(document.getElementById('bodyMinInput').value, 10);
+  const sec = parseInt(document.getElementById('bodySecInput').value, 10);
+  const timeSeconds = (isNaN(min) && isNaN(sec)) ? null : (isNaN(min)?0:min)*60 + (isNaN(sec)?0:sec);
   const values = {};
   document.querySelectorAll('#panelBody input[data-fieldvalue]').forEach(inp=>{
     const v = inp.value.trim();
-    if(v) values[inp.dataset.fieldvalue] = v;
+    if(v) values[inp.dataset.fieldvalue] = titleCase(v);
   });
-  if(Object.keys(values).length===0 && !type && !workout) return;
+  if(Object.keys(values).length===0 && !type && !detail && timeSeconds===null) return;
 
   if(editingBodyId){
     const e = BODYLOGS.find(x=>x.id===editingBodyId);
-    Object.assign(e, { date, time, type, workout, values });
+    Object.assign(e, { date, type, detail, notes, timeSeconds, values });
+    delete e.workout; delete e.time;
   } else {
-    BODYLOGS.push({ id: 'body-' + Date.now(), date, time, type, workout, values });
+    BODYLOGS.push({ id: 'body-' + Date.now(), date, type, detail, notes, timeSeconds, values });
   }
   await saveBodyData();
   resetBodyForm();
@@ -1124,17 +1176,20 @@ document.getElementById('saveBodyBtn').addEventListener('click', async ()=>{
 function renderBodyEntries(){
   const area = document.getElementById('bodyEntriesArea');
   if(BODYLOGS.length===0){ area.innerHTML = `<p class="empty">No body log entries yet.</p>`; return; }
-  const sorted = [...BODYLOGS].sort((a,b)=> new Date(b.date+'T'+(b.time||'00:00')) - new Date(a.date+'T'+(a.time||'00:00')));
+  const sorted = [...BODYLOGS].sort((a,b)=> new Date(b.date) - new Date(a.date));
   const rows = sorted.map(e=>{
     const metaBits = [fmtDate(dateInputToISO(e.date))];
-    if(e.time) metaBits.push(e.time);
     if(e.type) metaBits.push(e.type);
+    const timeStr = (e.timeSeconds!==undefined && e.timeSeconds!==null) ? formatDurationDisplay(e.timeSeconds) : (e.time || '');
+    if(timeStr) metaBits.push(timeStr);
+    const detailText = e.detail || e.workout || '';
     const fieldChips = Object.entries(e.values||{}).map(([k,v])=>`<span class="chip">${k}: ${v}</span>`).join('');
     return `
       <li>
         <div style="flex:1;">
           <div class="entry-meta" style="font-weight:600; color:var(--text);">${metaBits.join(' · ')}</div>
-          ${e.workout ? `<div class="note-text">${e.workout}</div>` : ''}
+          ${detailText ? `<div class="note-text">${detailText}</div>` : ''}
+          ${e.notes ? `<div class="note-text" style="color:var(--text-secondary);">${e.notes}</div>` : ''}
           ${fieldChips ? `<div style="margin-top:4px;">${fieldChips}</div>` : ''}
           <div class="entry-actions">
             <button data-editbody="${e.id}">Edit</button>
@@ -1165,9 +1220,10 @@ function renderBodyEntries(){
   });
 }
 function downloadBodyCSV(){
-  const rows = [['Date','Time','Type','Workout', ...BODYFIELDS]];
+  const rows = [['Date','Type','Detail','notes','time', ...BODYFIELDS]];
   [...BODYLOGS].sort((a,b)=> new Date(a.date)-new Date(b.date)).forEach(e=>{
-    rows.push([e.date, e.time||'', e.type||'', e.workout||'', ...BODYFIELDS.map(f=> (e.values||{})[f] ?? '')]);
+    const timeVal = (e.timeSeconds!==undefined && e.timeSeconds!==null) ? formatDurationCSV(e.timeSeconds) : (e.time || '');
+    rows.push([e.date, e.type||'', (e.detail||e.workout||''), e.notes||'', timeVal, ...BODYFIELDS.map(f=> (e.values||{})[f] ?? '')]);
   });
   const csv = rows.map(r=>r.map(csvEscape).join(',')).join('\n');
   const blob = new Blob([csv], {type:'text/csv'});

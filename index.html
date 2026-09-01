@@ -482,6 +482,21 @@ function fmtTime(iso){
 function todayInputValue(){
   return new Date().toLocaleDateString('en-CA',{timeZone: APP_TIMEZONE});
 }
+function isoToPacificWallTimeLocal(iso){
+  const d = new Date(iso);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: APP_TIMEZONE, year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', hour12:false
+  }).formatToParts(d);
+  const get = t => parts.find(p=>p.type===t).value;
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
+}
+function pacificWallTimeToISO(dateTimeLocalStr){
+  const guessUTC = new Date(dateTimeLocalStr + 'Z');
+  const asPacificDate = new Date(guessUTC.toLocaleString('en-US', {timeZone: APP_TIMEZONE}));
+  const diff = guessUTC.getTime() - asPacificDate.getTime();
+  return new Date(guessUTC.getTime() + diff).toISOString();
+}
 function dateInputToISO(dateStr){
   return new Date(dateStr + 'T12:00:00').toISOString();
 }
@@ -916,15 +931,16 @@ function updateJournalList(){
       const id = btn.dataset.edittime;
       const entry = LOGS.find(l=>l.id===id);
       const box = document.getElementById(`editorFor-${id}`);
-      const localVal = new Date(entry.timestamp).toISOString().slice(0,16);
+      const localVal = isoToPacificWallTimeLocal(entry.timestamp);
       box.innerHTML = `
         <input type="datetime-local" id="timeInput-${id}" value="${localVal}" style="margin-top:8px;">
+        <span class="hint">Pacific time</span>
         <button class="btn btn-text" data-savetime="${id}">Save</button>
       `;
       box.querySelector(`[data-savetime]`).addEventListener('click', async ()=>{
         const v = document.getElementById(`timeInput-${id}`).value;
         if(!v) return;
-        entry.timestamp = new Date(v).toISOString();
+        entry.timestamp = pacificWallTimeToISO(v);
         await saveData();
         updateJournalList();
       });

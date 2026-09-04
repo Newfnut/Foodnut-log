@@ -350,20 +350,6 @@ const DICTIONARY = [
   {k:"butter", s:6, c:"Fat", n:"Neutral on blood sugar itself; watch total saturated fat."},
   {k:"peanut butter", s:7, c:"Fat / Protein", n:"Good protein and fat — check for added sugar in some brands."},
   {k:"almonds", s:8, c:"Fat / Protein", n:"Fiber, fat, and protein with minimal carb impact."},
-  {k:"unsalted cashews", s:7, c:"Fat / Protein", n:"Slightly more carb-dense than almonds or walnuts, still a solid fat/protein source."},
-  {k:"cashews", s:6, c:"Fat / Protein", n:"More carb-dense than most nuts; salted/roasted versions add sodium and oil."},
-  {k:"pistachios", s:7, c:"Fat / Protein", n:"High fiber for a nut, moderate carbs."},
-  {k:"pecans", s:8, c:"Fat / Protein", n:"Very low carb, high in healthy fat."},
-  {k:"macadamia", s:8, c:"Fat / Protein", n:"Very low carb, highest fat content of common nuts."},
-  {k:"pumpkin seeds", s:8, c:"Fat / Protein", n:"Low carb, high in protein and magnesium."},
-  {k:"sunflower seeds", s:7, c:"Fat / Protein", n:"Good fat and protein, slightly more carb-dense than pumpkin seeds."},
-  {k:"unsalted cashews", s:7, c:"Fat / Protein", n:"Slightly more carb-dense than almonds or walnuts, still a solid fat/protein source."},
-  {k:"cashews", s:6, c:"Fat / Protein", n:"More carb-dense than most nuts; salted/roasted versions add sodium and oil."},
-  {k:"pistachios", s:7, c:"Fat / Protein", n:"High fiber for a nut, moderate carbs."},
-  {k:"pecans", s:8, c:"Fat / Protein", n:"Very low carb, high in healthy fat."},
-  {k:"macadamia", s:8, c:"Fat / Protein", n:"Very low carb, highest fat content of common nuts."},
-  {k:"pumpkin seeds", s:8, c:"Fat / Protein", n:"Low carb, high in protein and magnesium."},
-  {k:"sunflower seeds", s:7, c:"Fat / Protein", n:"Good fat and protein, slightly more carb-dense than pumpkin seeds."},
   {k:"walnuts", s:8, c:"Fat / Protein", n:"Fiber, fat, and protein with minimal carb impact."},
   {k:"nuts", s:8, c:"Fat / Protein", n:"Fiber, fat, and protein with minimal carb impact."},
   {k:"chia", s:9, c:"Fat / Fiber", n:"Very high fiber, slows digestion of anything eaten with it."},
@@ -922,7 +908,7 @@ function renderEntryEditor(box, id, entry, localVal){
         FOODCACHE[slugify(name)] = { ...(FOODCACHE[slugify(name)]||{}), name, score };
       }
     });
-    if(newItems.length === 0) return; // refuse to save a meal with nothing in it
+    if(newItems.length === 0) return;
     entry.items = newItems;
     entry.avgScore = Math.round((newItems.reduce((s,i)=>s+i.score,0)/newItems.length)*10)/10;
     if(timeVal) entry.timestamp = pacificWallTimeToISO(timeVal);
@@ -1184,7 +1170,8 @@ function resetBodyForm(){
   selectedBodyFields = [];
   document.getElementById('editingBanner').style.display = 'none';
   document.getElementById('bodyDateInput').value = todayInputValue();
-  document.getElementById('bodyTypeInput').value = '';
+  selectedBodyType = '';
+  renderTypeChipPicker();
   document.getElementById('bodyDetailInput').value = '';
   document.getElementById('bodyNotesInput').value = '';
   document.getElementById('bodyMinInput').value = '';
@@ -1222,7 +1209,7 @@ function loadBodyEntryIntoForm(id){
 document.getElementById('saveBodyBtn').addEventListener('click', async ()=>{
   const date = document.getElementById('bodyDateInput').value;
   if(!date) return;
-  const type = titleCase(document.getElementById('bodyTypeInput').value.trim());
+  const type = selectedBodyType || '';
   const detail = titleCase(document.getElementById('bodyDetailInput').value.trim());
   const notes = titleCase(document.getElementById('bodyNotesInput').value.trim());
   const min = parseInt(document.getElementById('bodyMinInput').value, 10);
@@ -1246,7 +1233,7 @@ document.getElementById('saveBodyBtn').addEventListener('click', async ()=>{
   resetBodyForm();
   closeBodyForm();
   renderBodyEntries();
-  populateTypeOptions();
+  renderTypeChipPicker();
 });
 function renderBodyEntries(){
   const area = document.getElementById('bodyEntriesArea');
@@ -1316,7 +1303,7 @@ async function renderBody(){
   }
   renderFieldPicker();
   renderBodyFieldInputs();
-  populateTypeOptions();
+  renderTypeChipPicker();
   renderBodyEntries();
 }
 

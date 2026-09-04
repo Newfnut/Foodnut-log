@@ -145,6 +145,12 @@
     margin: 3px 6px 3px 0;
   }
   .field-chip button{ background:none; border:none; color: var(--accent); cursor:pointer; font-size:14px; line-height:1; padding:0; }
+  .type-chip{
+    font-family: inherit; font-size: 14px; font-weight: 600;
+    border: 2px solid var(--border); background: #fff; color: var(--text);
+    border-radius: 18px; padding: 8px 14px; cursor: pointer;
+  }
+  .type-chip.selected{ border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 
   /* Tab bar */
   nav.tabbar{
@@ -250,8 +256,11 @@
         <label class="field-label">Date</label>
         <input type="date" id="bodyDateInput">
         <label class="field-label" style="margin-top:12px;">Type</label>
-        <input type="text" id="bodyTypeInput" list="typeOptions" placeholder="e.g. Cardio, Balance, Scale — optional">
-        <datalist id="typeOptions"></datalist>
+        <div id="typeChipPicker" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        <div class="btn-row" style="margin-top:8px;">
+          <input type="text" id="newTypeInput" placeholder="Add a new type, e.g. Cardio" style="flex:2;">
+          <button class="btn btn-secondary" id="addTypeBtn" style="flex:1;">Add</button>
+        </div>
         <label class="field-label" style="margin-top:12px;">Detail</label>
         <input type="text" id="bodyDetailInput" placeholder="e.g. Rowing Machine, Left Foot — optional">
         <label class="field-label" style="margin-top:12px;">Notes</label>
@@ -545,6 +554,7 @@ async function lookupOpenFoodFacts(name){
 let LOGS = [];        // [{id, mealType, timestamp, items:[{name,score}], avgScore, note}]
 let FOODCACHE = {};   // slug -> {name, score, category, note}
 let BODYFIELDS = [];  // ["Weight", "Left Foot", ...]
+let BODYTYPES = [];   // ["Cardio", "Balance", "Scale", ...]
 let BODYLOGS = [];    // [{id, date, values:{field: value}}]
 let dataLoaded = false;
 let lastKnownCount = 0;
@@ -567,6 +577,7 @@ async function loadData(){
       const bp = JSON.parse(bodySnap.data().payload);
       BODYFIELDS = bp.fields || [];
       BODYLOGS = bp.entries || [];
+      BODYTYPES = bp.types || [...new Set(BODYLOGS.map(e=>e.type).filter(Boolean))];
     }
   }catch(e){
     LOGS = []; FOODCACHE = {};
@@ -614,7 +625,7 @@ async function saveBodyData(){
   if(!currentUid) return false;
   try{
     const ref = doc(db, 'users', currentUid, 'bodylog', 'data');
-    await setDoc(ref, { payload: JSON.stringify({fields: BODYFIELDS, entries: BODYLOGS}), updatedAt: new Date().toISOString() });
+    await setDoc(ref, { payload: JSON.stringify({fields: BODYFIELDS, entries: BODYLOGS, types: BODYTYPES}), updatedAt: new Date().toISOString() });
     return true;
   }catch(e){ return false; }
 }
@@ -859,6 +870,67 @@ async function renderJournal(){
   document.getElementById('journalSearch').addEventListener('input', updateJournalList);
   updateJournalList();
 }
+function renderEntryEditor(box, id, entry, localVal){
+  const rowsHTML = entry.items.map((it,idx)=>`
+    <div style="display:flex; align-items:center; gap:8px; margin-top:6px;" data-row="${idx}">
+      <input type="text" value="${it.name}" id="nameEdit-${id}-${idx}" style="flex:1;">
+      <input type="number" min="1" max="10" step="0.5" value="${it.score}" id="scoreEdit-${id}-${idx}" style="width:70px;">
+      <button type="button" data-removerow="${idx}" style="background:none; border:none; color:var(--danger); font-size:18px; padding:0 4px; cursor:pointer;">×</button>
+    </div>
+  `).join('');
+  box.innerHTML = `
+    <label class="field-label" style="margin-top:10px;">Time</label>
+    <input type="datetime-local" id="timeInput-${id}" value="${localVal}">
+    <span class="hint">Pacific time</span>
+    <label class="field-label" style="margin-top:10px;">Items</label>
+    <div id="itemRows-${id}">${rowsHTML}</div>
+    <button type="button" class="btn-text" id="addRowBtn-${id}" style="margin-top:6px;">+ Add item</button>
+    <div class="btn-row" style="margin-top:8px;">
+      <button class="btn btn-primary" data-saveentry="${id}">Save</button>
+    </div>
+  `;
+  box.querySelector(`#addRowBtn-${id}`).addEventListener('click', ()=>{
+    const container = box.querySelector(`#itemRows-${id}`);
+    const idx = container.children.length;
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex; align-items:center; gap:8px; margin-top:6px;';
+    div.dataset.row = idx;
+    div.innerHTML = `
+      <input type="text" placeholder="New item" id="nameEdit-${id}-${idx}" style="flex:1;">
+      <input type="number" min="1" max="10" step="0.5" placeholder="Score" id="scoreEdit-${id}-${idx}" style="width:70px;">
+      <button type="button" data-removerow="${idx}" style="background:none; border:none; color:var(--danger); font-size:18px; padding:0 4px; cursor:pointer;">×</button>
+    `;
+    container.appendChild(div);
+    div.querySelector('[data-removerow]').addEventListener('click', ()=> div.remove());
+  });
+  box.querySelectorAll('[data-removerow]').forEach(x=>{
+    x.addEventListener('click', (e)=> e.target.closest('[data-row]').remove());
+  });
+  box.querySelector(`[data-saveentry]`).addEventListener('click', async ()=>{
+    const timeVal = document.getElementById(`timeInput-${id}`).value;
+    const rows = box.querySelectorAll(`#itemRows-${id} [data-row]`);
+    const newItems = [];
+    rows.forEach(row=>{
+      const idx = row.dataset.row;
+      const nameEl = document.getElementById(`nameEdit-${id}-${idx}`);
+      const scoreEl = document.getElementById(`scoreEdit-${id}-${idx}`);
+      if(!nameEl || !scoreEl) return;
+      const name = capitalizeFirst(nameEl.value.trim());
+      const score = parseFloat(scoreEl.value);
+      if(name && !isNaN(score)){
+        newItems.push({name, score});
+        FOODCACHE[slugify(name)] = { ...(FOODCACHE[slugify(name)]||{}), name, score };
+      }
+    });
+    if(newItems.length === 0) return; // refuse to save a meal with nothing in it
+    entry.items = newItems;
+    entry.avgScore = Math.round((newItems.reduce((s,i)=>s+i.score,0)/newItems.length)*10)/10;
+    if(timeVal) entry.timestamp = pacificWallTimeToISO(timeVal);
+    await saveData();
+    updateJournalList();
+  });
+}
+
 function updateJournalList(){
   const searchTerm = (document.getElementById('journalSearch')?.value || '').trim().toLowerCase();
   const totalMeals = LOGS.length;
@@ -903,8 +975,7 @@ function updateJournalList(){
         ${e.note ? `<div class="note-text">${e.note}</div>` : ''}
         <div class="entry-actions">
           <button data-duplicate="${e.id}">Duplicate</button>
-          <button data-edittime="${e.id}">Edit time</button>
-          <button data-editscores="${e.id}">Edit scores</button>
+          <button data-editentry="${e.id}">Edit</button>
           <button data-remove="${e.id}" class="danger">Delete</button>
         </div>
         <div id="editorFor-${e.id}"></div>
@@ -926,49 +997,13 @@ function updateJournalList(){
       ingredientsInput.focus();
     });
   });
-  list.querySelectorAll('[data-edittime]').forEach(btn=>{
+  list.querySelectorAll('[data-editentry]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      const id = btn.dataset.edittime;
+      const id = btn.dataset.editentry;
       const entry = LOGS.find(l=>l.id===id);
       const box = document.getElementById(`editorFor-${id}`);
       const localVal = isoToPacificWallTimeLocal(entry.timestamp);
-      box.innerHTML = `
-        <input type="datetime-local" id="timeInput-${id}" value="${localVal}" style="margin-top:8px;">
-        <span class="hint">Pacific time</span>
-        <button class="btn btn-text" data-savetime="${id}">Save</button>
-      `;
-      box.querySelector(`[data-savetime]`).addEventListener('click', async ()=>{
-        const v = document.getElementById(`timeInput-${id}`).value;
-        if(!v) return;
-        entry.timestamp = pacificWallTimeToISO(v);
-        await saveData();
-        updateJournalList();
-      });
-    });
-  });
-  list.querySelectorAll('[data-editscores]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const id = btn.dataset.editscores;
-      const entry = LOGS.find(l=>l.id===id);
-      const box = document.getElementById(`editorFor-${id}`);
-      box.innerHTML = entry.items.map((it,idx)=>`
-        <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
-          <input type="text" value="${it.name}" id="nameEdit-${id}-${idx}" style="flex:1;">
-          <input type="number" min="1" max="10" step="0.5" value="${it.score}" id="scoreEdit-${id}-${idx}" style="width:70px;">
-        </div>
-      `).join('') + `<button class="btn btn-text" data-savescores="${id}" style="margin-top:8px;">Save</button>`;
-      box.querySelector(`[data-savescores]`).addEventListener('click', async ()=>{
-        entry.items.forEach((it,idx)=>{
-          const newName = capitalizeFirst(document.getElementById(`nameEdit-${id}-${idx}`).value.trim());
-          const v = parseFloat(document.getElementById(`scoreEdit-${id}-${idx}`).value);
-          if(newName) it.name = newName;
-          if(!isNaN(v)) it.score = v;
-          FOODCACHE[slugify(it.name)] = { ...(FOODCACHE[slugify(it.name)]||{}), name: it.name, score: it.score };
-        });
-        entry.avgScore = Math.round((entry.items.reduce((s,i)=>s+i.score,0)/entry.items.length)*10)/10;
-        await saveData();
-        updateJournalList();
-      });
+      renderEntryEditor(box, id, entry, localVal);
     });
   });
   list.querySelectorAll('[data-remove]').forEach(btn=>{
@@ -1118,10 +1153,32 @@ function closeBodyForm(){
   document.getElementById('bodyFormCard').style.display = 'none';
 }
 
-function populateTypeOptions(){
-  const types = [...new Set(BODYLOGS.map(e=>e.type).filter(Boolean))];
-  document.getElementById('typeOptions').innerHTML = types.map(t=>`<option value="${t}">`).join('');
+let selectedBodyType = '';
+function renderTypeChipPicker(){
+  const box = document.getElementById('typeChipPicker');
+  if(BODYTYPES.length===0){ box.innerHTML = `<p class="hint">No types yet — add one below.</p>`; return; }
+  box.innerHTML = BODYTYPES.map(t=>
+    `<button type="button" class="type-chip${t===selectedBodyType?' selected':''}" data-typechip="${t}">${t}</button>`
+  ).join('');
+  box.querySelectorAll('[data-typechip]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      selectedBodyType = (selectedBodyType === btn.dataset.typechip) ? '' : btn.dataset.typechip;
+      renderTypeChipPicker();
+      openBodyForm();
+    });
+  });
 }
+document.getElementById('addTypeBtn').addEventListener('click', async ()=>{
+  const input = document.getElementById('newTypeInput');
+  const name = titleCase(input.value.trim());
+  if(!name || BODYTYPES.includes(name)) return;
+  BODYTYPES.push(name);
+  selectedBodyType = name;
+  await saveBodyData();
+  input.value = '';
+  renderTypeChipPicker();
+  openBodyForm();
+});
 function resetBodyForm(){
   editingBodyId = null;
   selectedBodyFields = [];
@@ -1141,7 +1198,9 @@ function loadBodyEntryIntoForm(id){
   editingBodyId = id;
   document.getElementById('editingBanner').style.display = 'block';
   document.getElementById('bodyDateInput').value = e.date;
-  document.getElementById('bodyTypeInput').value = e.type || '';
+  selectedBodyType = e.type || '';
+  if(selectedBodyType && !BODYTYPES.includes(selectedBodyType)) BODYTYPES.push(selectedBodyType);
+  renderTypeChipPicker();
   document.getElementById('bodyDetailInput').value = e.detail || e.workout || '';
   document.getElementById('bodyNotesInput').value = e.notes || '';
   if(e.timeSeconds !== undefined && e.timeSeconds !== null){

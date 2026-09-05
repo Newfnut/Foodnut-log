@@ -883,8 +883,8 @@ function renderEntryEditor(box, id, entry, localVal){
       <button class="btn btn-primary" data-saveentry="${id}">Save</button>
     </div>
   `;
-  box.querySelector(`#addRowBtn-${id}`).addEventListener('click', ()=>{
-    const container = box.querySelector(`#itemRows-${id}`);
+  document.getElementById(`addRowBtn-${id}`).addEventListener('click', ()=>{
+    const container = document.getElementById(`itemRows-${id}`);
     const idx = container.children.length;
     const div = document.createElement('div');
     div.style.cssText = 'display:flex; align-items:center; gap:8px; margin-top:6px;';
@@ -902,7 +902,7 @@ function renderEntryEditor(box, id, entry, localVal){
   });
   box.querySelector(`[data-saveentry]`).addEventListener('click', async ()=>{
     const timeVal = document.getElementById(`timeInput-${id}`).value;
-    const rows = box.querySelectorAll(`#itemRows-${id} [data-row]`);
+    const rows = document.getElementById(`itemRows-${id}`).querySelectorAll('[data-row]');
     const newItems = [];
     rows.forEach(row=>{
       const idx = row.dataset.row;

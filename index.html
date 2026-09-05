@@ -487,10 +487,18 @@ function isoToPacificWallTimeLocal(iso){
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
 }
 function pacificWallTimeToISO(dateTimeLocalStr){
-  const guessUTC = new Date(dateTimeLocalStr + 'Z');
-  const asPacificDate = new Date(guessUTC.toLocaleString('en-US', {timeZone: APP_TIMEZONE}));
-  const diff = guessUTC.getTime() - asPacificDate.getTime();
-  return new Date(guessUTC.getTime() + diff).toISOString();
+  const [datePart, timePart] = dateTimeLocalStr.split('T');
+  const [y,m,d] = datePart.split('-').map(Number);
+  const [hh,mm] = timePart.split(':').map(Number);
+  const utcGuess = Date.UTC(y, m-1, d, hh, mm);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: APP_TIMEZONE, year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', hour12:false
+  }).formatToParts(new Date(utcGuess));
+  const get = t => parseInt(parts.find(p=>p.type===t).value, 10);
+  const pacificAsIfUTC = Date.UTC(get('year'), get('month')-1, get('day'), get('hour')===24?0:get('hour'), get('minute'));
+  const offset = utcGuess - pacificAsIfUTC;
+  return new Date(utcGuess + offset).toISOString();
 }
 function dateInputToISO(dateStr){
   return new Date(dateStr + 'T12:00:00').toISOString();
@@ -908,11 +916,32 @@ function renderEntryEditor(box, id, entry, localVal){
         FOODCACHE[slugify(name)] = { ...(FOODCACHE[slugify(name)]||{}), name, score };
       }
     });
-    if(newItems.length === 0) return;
+    if(newItems.length === 0){
+      alert("Can't save — every item needs both a name and a score. Remove any blank rows and try again.");
+      return;
+    }
+    const saveBtn = box.querySelector('[data-saveentry]');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
     entry.items = newItems;
     entry.avgScore = Math.round((newItems.reduce((s,i)=>s+i.score,0)/newItems.length)*10)/10;
-    if(timeVal) entry.timestamp = pacificWallTimeToISO(timeVal);
-    await saveData();
+    if(timeVal){
+      try{
+        entry.timestamp = pacificWallTimeToISO(timeVal);
+      }catch(e){
+        alert("Couldn't read that time — try re-picking it.");
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+        return;
+      }
+    }
+    const ok = await saveData();
+    if(!ok){
+      alert("Save failed — this usually means a connection or permissions issue with the database. Your edits are showing on screen but haven't actually been saved yet. Try again in a moment.");
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+      return;
+    }
     updateJournalList();
   });
 }
